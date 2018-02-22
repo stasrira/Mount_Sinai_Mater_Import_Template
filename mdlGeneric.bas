@@ -2,7 +2,7 @@ Attribute VB_Name = "mdlGeneric"
 Option Explicit
 
 Public Const cHelpTitle = "Sample Entry Validation Tool"
-Public Const cHelpVersion = "1.0"
+Public Const cHelpVersion = "1.001"
 Public Const cHelpDescription = "Questions and technical support: email to stasrirak.ms@gmail.com"
 
 Public Const cRawDataWorksheetName = "RawData"
@@ -916,6 +916,7 @@ Public Sub RegisterCustomEvents()
     Application.OnKey "^+{v}", "SwitchValidationFunctionaltiyOnOff" 'CTRL+SHIFT+V
     Application.OnKey "^+{d}", "SwitchDropDownFunctionaltiyOnOff" 'CTRL+SHIFT+D
     Application.OnKey "^+{h}", "HighlightDuplicates" 'CTRL+SHIFT+H
+    Application.OnKey "^{v}", "PasteasValue" 'CTRL+V
     
 End Sub
 
@@ -928,6 +929,7 @@ Public Sub UnRegisterCustomEvents()
     Application.OnKey "^+{v}" 'CTRL+SHIFT+V
     Application.OnKey "^+{d}" 'CTRL+SHIFT+D
     Application.OnKey "^+{h}" 'CTRL+SHIFT+H
+    Application.OnKey "^{v}" 'CTRL+V
 End Sub
 
 
@@ -1053,4 +1055,12 @@ Public Sub HighlightDuplicates(Optional rTargetCells As Range)
     
     Next
     
+End Sub
+
+'this sub will make sure that Ctrl+V by default inserts only values (without formulas, formatting, etc.)
+Public Sub PasteasValue()
+    On Error Resume Next 'this will prevent a run-time error in case if Ctrl+V is pressed when buffer is empty
+    'Debug.Print "PasteasValue", Now()
+    ActiveCell.PasteSpecial Paste:=xlPasteValues
+    On Error GoTo 0
 End Sub
