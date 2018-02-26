@@ -181,10 +181,10 @@ End Function
 Private Function FindFieldValue(fieldName As String, cellProperties As clsCellProperties) As String
     'fieldName example: {MT_Project}
     'The following is using HLOOKUP function to find needed value - i.e. HLOOKUP("MT_Project", A1:Z100,4, FALSE)
+    On Error Resume Next 'this is required to avoid run time errors, if HLookup cannot find a needed value
     
     fieldName = Replace(Replace(fieldName, "{", ""), "}", "") 'remove figure brackets from the name
     
-    'Application.WorksheetFunction.VLookup(vFieldValue, .Range(strDropdownLookupRange), 3, False)
     With Worksheets(cValidatedWorksheetName)
         FindFieldValue = """" & Application.WorksheetFunction.HLookup(fieldName, .Range("A1:Z" & cellProperties.cellRow), cellProperties.cellRow, False) & """"
     End With

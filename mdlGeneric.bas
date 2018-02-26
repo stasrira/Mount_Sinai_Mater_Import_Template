@@ -2,7 +2,7 @@ Attribute VB_Name = "mdlGeneric"
 Option Explicit
 
 Public Const cHelpTitle = "Sample Entry Validation Tool"
-Public Const cHelpVersion = "1.001"
+Public Const cHelpVersion = "1.003"
 Public Const cHelpDescription = "Questions and technical support: email to stasrirak.ms@gmail.com"
 
 Public Const cRawDataWorksheetName = "RawData"
@@ -28,7 +28,7 @@ Public dictFieldSettings As New Dictionary
 Public bVoidAutomatedValidation As Boolean
 Public bVoidDropDownFunctionality As Boolean
 Public bFieldHeadersWereSynced As Boolean
-'Public bFieldDetailsRequest As Boolean
+Public bSetCtrlVPasteAsValues As Boolean
 
 Public Enum ValidationErrorStatus
     NoErrors = 1
@@ -176,7 +176,7 @@ Public Sub ValidateWholeWorksheet(Optional startCell As String = "A1", Optional 
     
     If iResponse = vbOK Then
     tStart = Now()
-Debug.Print tStart 'for test purposes only
+'Debug.Print tStart 'for test purposes only
 
         Dim iCols As Integer, iRows As Integer
         Dim rRng As Range, rCell As Range
@@ -207,7 +207,7 @@ Debug.Print tStart 'for test purposes only
         End With
         
         tEnd = Now()
-Debug.Print tEnd 'for test purposes only
+'Debug.Print tEnd 'for test purposes only
 
         mSeconds = DateDiff("s", tStart, tEnd)
         mHours = mSeconds \ 3600
@@ -551,7 +551,7 @@ Public Sub ApplyDropdownSettingsToCells(Optional sWorksheetName As String = "Raw
                 'oFieldSettings.UpdateVolatileSettings cellProperties 'in this sub we do not care about volatile values
             End If
             
-            Debug.Print oFieldSettings.fieldName
+            'Debug.Print oFieldSettings.fieldName
             
             'Debug.Print .Range(Cells(rCell.Row, rCell.Column).Address & ":" & Cells(rCell.EntireColumn.Rows.Count, rCell.Column).Address).Address 'rCell.EntireColumn.Rows.Count
             'set the range of the cells (of the current worksheet) to be updated with the Validation rulles
@@ -574,7 +574,7 @@ Public Sub ApplyDropdownSettingsToCells(Optional sWorksheetName As String = "Raw
 '                                )
                 'Worksheets(cDictionayWorksheetName).Range(oFieldSettings.FieldDropDownValueLookupRange).Cells(1).Offset(Range(oFieldSettings.FieldDropDownValueLookupRange).Rows.Count - 1).End(xlUp).Address _
 
-                Debug.Print rDropDownValues.Address
+                'Debug.Print rDropDownValues.Address
                 
                 If Err.Number = 0 Then
                     'Apply validation rules to all cells in the column corresponding to the current field
@@ -916,7 +916,7 @@ Public Sub RegisterCustomEvents()
     Application.OnKey "^+{v}", "SwitchValidationFunctionaltiyOnOff" 'CTRL+SHIFT+V
     Application.OnKey "^+{d}", "SwitchDropDownFunctionaltiyOnOff" 'CTRL+SHIFT+D
     Application.OnKey "^+{h}", "HighlightDuplicates" 'CTRL+SHIFT+H
-    Application.OnKey "^{v}", "PasteasValue" 'CTRL+V
+    'Application.OnKey "^{v}", "PasteAsSwitch" 'CTRL+V
     
 End Sub
 
@@ -929,7 +929,7 @@ Public Sub UnRegisterCustomEvents()
     Application.OnKey "^+{v}" 'CTRL+SHIFT+V
     Application.OnKey "^+{d}" 'CTRL+SHIFT+D
     Application.OnKey "^+{h}" 'CTRL+SHIFT+H
-    Application.OnKey "^{v}" 'CTRL+V
+    'Application.OnKey "^{v}" 'CTRL+V
 End Sub
 
 
@@ -1058,9 +1058,13 @@ Public Sub HighlightDuplicates(Optional rTargetCells As Range)
 End Sub
 
 'this sub will make sure that Ctrl+V by default inserts only values (without formulas, formatting, etc.)
-Public Sub PasteasValue()
+Public Sub PasteAsSwitch()
     On Error Resume Next 'this will prevent a run-time error in case if Ctrl+V is pressed when buffer is empty
-    'Debug.Print "PasteasValue", Now()
-    ActiveCell.PasteSpecial Paste:=xlPasteValues
+    'Debug.Print "PasteAsSwitch", Now()
+    If bSetCtrlVPasteAsValues Then
+        ActiveCell.PasteSpecial Paste:=xlPasteValues
+    Else
+        ActiveCell.PasteSpecial Paste:=xlPasteAll
+    End If
     On Error GoTo 0
 End Sub
