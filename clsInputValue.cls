@@ -249,7 +249,7 @@ Private Static Sub ParseSourcAliquotLabel(CalcOverwriteExistingVal As Boolean)
         Dim sSubjectId As String
         Dim sTimepoint As String
         Dim sSourceSpecimen As String
-        Dim curValue As String
+        Dim curValue As String, curAddress As String
         
         'Parse field's values
         sSampleId = Left(FieldValue, Len(FieldValue) - 2) 'whole value without 2 last characters
@@ -260,26 +260,38 @@ Private Static Sub ParseSourcAliquotLabel(CalcOverwriteExistingVal As Boolean)
         On Error Resume Next
         'Update associated fields
         With Worksheets(cRawDataWorksheetName)
-            With .Range(FindFieldAddress("MT_Sample ID", cellProperties.cellRow))
-                curValue = .Value
-                .Value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, sSampleId)
-            End With
+            curAddress = FindFieldAddress("MT_Sample ID", cellProperties.cellRow)
+            If Len(Trim(curAddress)) > 0 Then
+                With .Range(curAddress)
+                    curValue = .Value
+                    .Value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, sSampleId)
+                End With
+            End If
             
-            With .Range(FindFieldAddress("MT_SubjectID", cellProperties.cellRow))
-                curValue = .Value
-                .Value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, sSubjectId)
-            End With
-                    
-            With .Range(FindFieldAddress("MT_Source Specimen", cellProperties.cellRow))
-                curValue = .Value
-                .Value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, sSourceSpecimen)
-            End With
-
-            With .Range(FindFieldAddress("MT_Study Timepoint", cellProperties.cellRow))
-                curValue = .Value
-                .Value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, sTimepoint)
-            End With
-                
+            curAddress = FindFieldAddress("MT_SubjectID", cellProperties.cellRow)
+            If Len(Trim(curAddress)) > 0 Then
+                With .Range(curAddress)
+                    curValue = .Value
+                    .Value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, sSubjectId)
+                End With
+            End If
+            
+            curAddress = FindFieldAddress("MT_Source Specimen", cellProperties.cellRow)
+            If Len(Trim(curAddress)) > 0 Then
+                With .Range(curAddress)
+                    curValue = .Value
+                    .Value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, sSourceSpecimen)
+                End With
+            End If
+            
+            curAddress = FindFieldAddress("MT_Study Timepoint", cellProperties.cellRow)
+            If Len(Trim(curAddress)) > 0 Then
+                With .Range(curAddress)
+                    curValue = .Value
+                    .Value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, sTimepoint)
+                End With
+            End If
+            
         End With
         On Error GoTo 0
     Else
@@ -292,10 +304,12 @@ Private Sub GetScannedPositions(CalcOverwriteExistingVal As Boolean)
     Dim rCell As Range
     Dim scanStatus As String
     Dim bPos As clsBoxPosition
-    Dim curValue As String
+    Dim curValue As String, curAddress As String
+    Dim scanBoxID As String
         
     With Worksheets(cFlatbedScansWorksheetName)
         If Len(FieldValue) > 0 Then
+            'TODO: avoid using hardcoded addresses as one below
             Set rCell = .Range("$B:$B").Find(FieldValue, , LookIn:=xlValues) 'search for a particular Vessel ID value
             
             If Not rCell Is Nothing Then 'if the Vessel ID was found, proceed here
@@ -305,25 +319,34 @@ Private Sub GetScannedPositions(CalcOverwriteExistingVal As Boolean)
                     'parse the location value into coordinates: row/column
                     Set bPos = New clsBoxPosition
                     bPos.SplitScannedLocationToPositions (rCell.Offset(0, -1).Value)
+                    'get Box ID value reported by flatbedscanner
+                    scanBoxID = rCell.Offset(0, 2).Value
                     
                     'On Error Resume Next
                     'Update associated fields
                     With Worksheets(cRawDataWorksheetName)
-                        With .Range(FindFieldAddress("Row_p4", cellProperties.cellRow))
-                            curValue = .Value
-                            .Value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, bPos.Row_p4)
-                        End With
+                        'update Row(p4) field value on the Rawdata sheet
+                        curAddress = FindFieldAddress("Row_p4", cellProperties.cellRow)
+                        If Len(Trim(curAddress)) > 0 Then
+                            With .Range(curAddress)
+                                curValue = .Value
+                                .Value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, bPos.Row_p4)
+                            End With
+                        End If
                     
 '                        .Range(FindFieldAddress("Row_p4", cellProperties.cellRow)).Value = _
 '                            IIf(Not CalcOverwriteExistingVal And Len(Trim(Range(FindFieldAddress("Row_p4", cellProperties.cellRow)).Value)) > 0, _
 '                                Range(FindFieldAddress("Row_p4", cellProperties.cellRow)).Value, _
 '                                bPos.Row_p4)
                                 
-                        With .Range(FindFieldAddress("Column_p5", cellProperties.cellRow))
-                            curValue = .Value
-                            .Value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, bPos.Column_p5)
-                        End With
-                        
+                        'update Column(p5) field value on the Rawdata sheet
+                        curAddress = FindFieldAddress("Column_p5", cellProperties.cellRow)
+                        If Len(Trim(curAddress)) > 0 Then
+                            With .Range(curAddress)
+                                curValue = .Value
+                                .Value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, bPos.Column_p5)
+                            End With
+                        End If
 '                        .Range(FindFieldAddress("Column_p5", cellProperties.cellRow)).Value = _
 '                            IIf(Not CalcOverwriteExistingVal And Len(Trim(Range(FindFieldAddress("Column_p5", cellProperties.cellRow)).Value)) > 0, _
 '                                Range(FindFieldAddress("Column_p5", cellProperties.cellRow)).Value, _
@@ -331,6 +354,17 @@ Private Sub GetScannedPositions(CalcOverwriteExistingVal As Boolean)
                          'Old code
 '                        .Range(FindFieldAddress("Row_p4", cellProperties.cellRow)).Value = bPos.Row_p4
 '                        .Range(FindFieldAddress("Column_p5", cellProperties.cellRow)).Value = bPos.Column_p5
+                        
+                        'update MT_Box Label field value on the Rawdata sheet
+                        curAddress = FindFieldAddress("MT_Box Label", cellProperties.cellRow)
+                        If Len(Trim(curAddress)) > 0 Then
+                            With .Range(curAddress)
+                                curValue = .Value
+                                .Value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, scanBoxID)
+                            End With
+                        End If
+
+                        
                     End With
                     'On Error GoTo 0
                     
@@ -361,6 +395,8 @@ Private Function FindFieldAddress(fieldName As String, cellRow As String, Option
             'FindFieldAddress = fcol & cellRow 'cValidatedWorksheetName & "!" &
             
             FindFieldAddress = Cells(cellRow, fnr.Column).Address
+        Else
+            FindFieldAddress = ""
         End If
     End With
     

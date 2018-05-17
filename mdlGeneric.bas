@@ -2,7 +2,7 @@ Attribute VB_Name = "mdlGeneric"
 Option Explicit
 
 Public Const cHelpTitle = "Sample Entry Validation Tool"
-Public Const cHelpVersion = "1.004"
+Public Const cHelpVersion = "1.007"
 Public Const cHelpDescription = "Questions and technical support: email to stasrirak.ms@gmail.com"
 
 Public Const cRawDataWorksheetName = "RawData"
@@ -401,6 +401,34 @@ ShowDialog:
     Application.ScreenUpdating = True
     
 End Sub
+
+Public Function GetFieldSettingsInstance(cellProperties As clsCellProperties, Optional updateVolatileSetting As Boolean = True, Optional fieldName As String = "")
+    'TODO: this function should be called from all places where dictFieldSettings is validated for presense of an object for a given field name
+    Dim oFieldSettings As clsFieldSettings
+    
+    If cellProperties Is Nothing And Len(Trim(fieldName)) > 0 Then
+        'if cellProperties were not provided, but fieldName was given, the function will populate cellPropertis with bogus location info and would not update Volatile settings
+        'this is required to get properties of a Field from the Field Setting page for cases not related to validation of the cell on the RawData sheet
+        Set cellProperties = New clsCellProperties
+        cellProperties.CellFieldName = fieldName
+        cellProperties.CellAddress = "ZZ:10000" 'bogus number
+        updateVolatileSetting = False
+    End If
+    
+    'get the Field Settings for the selected field
+    'populate dictFieldSettings dictionary with an entry for each of the Fields
+    If Not dictFieldSettings.Exists(cellProperties.CellFieldName) Then
+        Set oFieldSettings = New clsFieldSettings
+        oFieldSettings.InitializeValues cellProperties
+        dictFieldSettings.Add cellProperties.CellFieldName, oFieldSettings
+    Else
+        Set oFieldSettings = dictFieldSettings(cellProperties.CellFieldName)
+        If updateVolatileSetting Then oFieldSettings.UpdateVolatileSettings cellProperties
+    End If
+    
+    Set GetFieldSettingsInstance = oFieldSettings
+    
+End Function
 
 'this function will loop through the FieldSettings Dictionary and check if any of the fields have to be excluded from the export. If such field found, the corresponded column will be deleted from the passed worksheet
 Public Sub RemoveColumnsExcludedFromExport(tempWorksheet As Worksheet, sourceWorksheet As Worksheet)
