@@ -14,6 +14,11 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     
     Dim rCell As Range
     
+    'apply the logic below only for first 4 columns (the ones being copied from the flatbed scanner file); exit sub in other cases.
+    If Target.Column > 4 Then
+        Exit Sub
+    End If
+    
     Application.EnableEvents = False
     For Each rCell In Target.Cells
         'If IsNumeric(rCell.Value) Then
@@ -50,14 +55,18 @@ Private Sub Worksheet_Deactivate()
     
     'set parameters for MT_Box Label field.
     Set oFieldSettings = GetFieldSettingsInstance(Nothing, False, "MT_Box Label")
-    sourceRangeAddress = "D1" 'first cell of the column storring the list of Box IDs on the FlatbedScans tab
-    CopyValuesToDictionarySheet sourceRangeAddress, oFieldSettings.FieldDropDownValueLookupRange, True
+    If oFieldSettings.DataAvailable And Len(Trim(oFieldSettings.FieldDropDownValueLookupRange)) Then
+        sourceRangeAddress = "D1" 'first cell of the column storring the list of Box IDs on the FlatbedScans tab
+        CopyValuesToDictionarySheet sourceRangeAddress, oFieldSettings.FieldDropDownValueLookupRange, True
+    End If
     'CopyBoxIDsToDictionarySheet oFieldSettings.FieldDropDownValueLookupRange
     'CopyBoxIDsToDictionarySheet "BA3" ' - for test only
     
     Set oFieldSettings = GetFieldSettingsInstance(Nothing, False, "MT_Vessel ID")
-    sourceRangeAddress = "B1" 'first cell of the column storring the list of Tube IDs on the FlatbedScans tab
-    CopyValuesToDictionarySheet sourceRangeAddress, oFieldSettings.FieldDropDownValueLookupRange, True
+    If oFieldSettings.DataAvailable And Len(Trim(oFieldSettings.FieldDropDownValueLookupRange)) Then
+        sourceRangeAddress = "B1" 'first cell of the column storring the list of Tube IDs on the FlatbedScans tab
+        CopyValuesToDictionarySheet sourceRangeAddress, oFieldSettings.FieldDropDownValueLookupRange, True
+    End If
     
     ApplyDropdownSettingsToCells 'apply any dropdown value changes to the dropdown fields
     
