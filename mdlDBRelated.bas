@@ -42,9 +42,12 @@ Public Sub LoadDictionaryValues()
         Set DictTitlesRange = .Range(GetConfigValue("Dict_DB_Title_Range_Start_Cell") & ":" & Cells(1, .UsedRange.Columns.Count).Address)
     
         If DictTitlesRange.Cells.Count > 0 Then
-        
+            
+            On Error GoTo err_connection
             'Open the connection and execute.
             conn.Open sConnString
+            
+            On Error GoTo 0
             
             'loop through all fields listed as titles and search DB for dictionary info for these fields
             For Each c In DictTitlesRange.Cells
@@ -54,7 +57,10 @@ Public Sub LoadDictionaryValues()
                     'if the field name is not empty, try to get data for it from the DB
                     'Set rs = conn.Execute("SELECT RawValue [Raw Value], iif(DefaultFlag = 1, '1','') [Default Flag], ValidatedValue [Validated Value] FROM dw_fw_dropdown_fields where FieldName = '" & Trim(c.Value) & "'")
                     '"SELECT RawValue [Raw Value], iif(DefaultFlag = 1, '1','') [Default Flag], ValidatedValue [Validated Value] FROM dw_fw_dropdown_fields where FieldName = '{{search_field_name}}'"
+                    
+                    On Error GoTo err_recordset
                     Set rs = conn.Execute(Replace(GetConfigValue("Dict_DB_Select_Statment"), "{{search_field_name}}", Trim(c.Value)))
+                    On Error GoTo 0
                     
                     'if returned recordset is not empty load received data for the current field
                     'there is an expectation that range for the values form DB starts on the 3rd row under the field name and consists of 3 columns
@@ -94,6 +100,24 @@ Public Sub LoadDictionaryValues()
             & "**** Updated fields ****" & vbCrLf & Replace(updatedFields.toString, ", ", vbCrLf) & vbCrLf & vbCrLf _
             & "**** Not Updated fields ****" & vbCrLf & Replace(notUpdatedFields.toString, ", ", vbCrLf) _
             , vbInformation, "Dictionary DB sync"
+            
+    Exit Sub
+    
+    Dim err_str As String
+
+err_connection:
+    err_str = "The database cannot be reached or access denied. Please contact your IT admin to resolve the issue." & vbCrLf & vbCrLf & _
+                "Detailed error description: " & vbCrLf & Err.Description
+    
+    MsgBox err_str, vbCritical, "Loading Dictionary to Master Template"
+    Exit Sub
+    
+err_recordset:
+    err_str = "Retrieving data from database generated an error. The process was aborted. Please contact your IT admin to resolve the issue." & vbCrLf & vbCrLf & _
+                "Detailed error description: " & vbCrLf & Err.Description
+    
+    MsgBox err_str, vbCritical, "Loading Dictionary to Master Template"
+    Exit Sub
             
 End Sub
 

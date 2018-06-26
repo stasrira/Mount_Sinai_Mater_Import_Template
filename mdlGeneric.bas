@@ -1055,9 +1055,9 @@ Public Sub LoadCustomMenus()
         'create sub menu "DB Link"
         Set cmbDBLink = .Controls.Add(Type:=msoControlPopup, Temporary:=True)
         With cmbDBLink
-            .Caption = "DB Link"
+            .Caption = "Database Link"
             With .Controls.Add(Type:=msoControlButton)
-                .Caption = "Sync Dictionary values from DB"
+                .Caption = "Sync Dictionary values with Database"
                 .OnAction = "LoadDictionaryValues"
                 .FaceId = 3000
             End With
