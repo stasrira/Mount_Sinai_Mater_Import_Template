@@ -31,6 +31,7 @@ Public Function VaildateValue(vFieldValue As String)
     Dim rRng As Range
 
     'DropdownLookupRange = Worksheets(cDictionayWorksheetName).Range(vDropdownLookupRange)
+    
     With Worksheets(cDictionayWorksheetName)
         If Not IsError(Application.match(vFieldValue, .Range(strDropdownLookupRange).Columns(1), 0)) Then
             Set rRng = .Range(.Range(strDropdownLookupRange).Cells(1), .Range(strDropdownLookupRange).Cells(.Range(strDropdownLookupRange).Rows.Count).Offset(0, 2))

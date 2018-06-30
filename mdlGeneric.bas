@@ -2,7 +2,7 @@ Attribute VB_Name = "mdlGeneric"
 Option Explicit
 
 Public Const cHelpTitle = "Sample Entry Validation Tool"
-Public Const cHelpVersion = "1.007"
+Public Const cHelpVersion = "1.008"
 Public Const cHelpDescription = "Questions and technical support: email to stasrirak.ms@gmail.com"
 
 Public Const cRawDataWorksheetName = "RawData"
@@ -10,6 +10,8 @@ Public Const cValidatedWorksheetName = "Validated"
 Public Const cSettingsWorksheetName = "FieldSettings"
 Public Const cDictionayWorksheetName = "Dictionary"
 Public Const cFlatbedScansWorksheetName = "FlatbedScans"
+Public Const cConfigWorksheetName = "Configuration"
+
 
 Public Const cCustomMenuName = "&MSSM MENU"
 Public Const cCustomMenu_SubMenuSettings = "Settings"
@@ -21,6 +23,7 @@ Public Const cCustomMenu_SetValidationFunc_ShortCut = "          CTRL+SHIFT+V"
 Public Const cFieldSettings_FirstFieldCell = "A2"
 Public Const cRawData_FirstColumnCell = "A1"
 Public Const cValidated_FirstColumnCell = "A1"
+Public Const cConfig_FirstFieldCell = "A2"
 
 Public dictValidationResults As New Dictionary
 Public dictFieldSettings As New Dictionary
@@ -757,13 +760,13 @@ Private Function AllValidatedCellsErrorReport() As ValidationReportMsg
     Dim oValidRes As clsValidationResult
     Dim oFieldSet As clsFieldSettings
     Dim outVal As ValidationReportMsg
-    Dim errDict As New Dictionary, key As Variant
+    Dim errDict As New Dictionary, Key As Variant
     Dim msgOut As ValidationReportMsg, sb As StringBuilder
     
     If Not dictValidationResults Is Nothing Then 'check if validation results are available
     
-        For Each key In dictValidationResults.Keys 'loop through all validation results and check for reported errors
-            Set oValidRes = dictValidationResults.Item(key)
+        For Each Key In dictValidationResults.Keys 'loop through all validation results and check for reported errors
+            Set oValidRes = dictValidationResults.Item(Key)
             If oValidRes.ValidationErrors.ErrorCount > 0 Then
                 'group reported validation errors by field names; store total count of errors per the field name
                 If errDict.Exists(oValidRes.ValidatedCellProperties.CellFieldName) Then
@@ -779,11 +782,11 @@ Private Function AllValidatedCellsErrorReport() As ValidationReportMsg
         'prepare output message
         If errDict.Count > 0 Then
             Dim rowCount As Integer
-            For Each key In errDict.Keys
+            For Each Key In errDict.Keys
                 If rowCount > 0 Then
                     sb.Append vbCrLf
                 End If
-                sb.Append key & ": " & errDict.Item(key) & " errors"
+                sb.Append Key & ": " & errDict.Item(Key) & " errors"
                 rowCount = rowCount + 1
             Next
             outVal.MsgBoxStyle = vbCritical
@@ -965,6 +968,7 @@ Public Sub LoadCustomMenus()
     Dim cmbBar As CommandBar
     Dim cmbControl As CommandBarControl
     Dim cmbSettings As CommandBarControl
+    Dim cmbDBLink As CommandBarControl
     
     'add custom menus to Add-In ribon of Excel
     Set cmbBar = Application.CommandBars("Worksheet Menu Bar")
@@ -1046,7 +1050,17 @@ Public Sub LoadCustomMenus()
                 .OnAction = "ShowAboutMessage"
                 '.FaceId = 3000
             End With
-            
+        End With
+        
+        'create sub menu "DB Link"
+        Set cmbDBLink = .Controls.Add(Type:=msoControlPopup, Temporary:=True)
+        With cmbDBLink
+            .Caption = "Database Link"
+            With .Controls.Add(Type:=msoControlButton)
+                .Caption = "Sync Dictionary values with Database"
+                .OnAction = "LoadDictionaryValues"
+                .FaceId = 3000
+            End With
         End With
     
     End With
@@ -1096,3 +1110,24 @@ Public Sub PasteAsSwitch()
     End If
     On Error GoTo 0
 End Sub
+
+
+
+Public Function GetConfigValue(Key As String) As Variant
+    With Worksheets(cConfigWorksheetName)
+        Dim fnr As Range
+        Dim iRows As Integer
+        
+        iRows = .UsedRange.Rows.Count 'number of actually used rows
+        
+        'identify range of actually used cells on the given spreadsheet and apply Find function
+        Set fnr = .Range(cConfig_FirstFieldCell & ":" & Cells(iRows, 1).Address).Find(Key, LookIn:=xlValues) 'fnr will contain the cell matching the find criteria
+        
+        'if fnr is not Nothing, retrun the associate value
+        If Not fnr Is Nothing Then
+            GetConfigValue = fnr.Offset(0, 1).Value 'it will return value of the cell located immediately on a right from the address located in fnr
+        Else
+            GetConfigValue = Null
+        End If
+    End With
+End Function
