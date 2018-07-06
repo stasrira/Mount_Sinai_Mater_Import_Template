@@ -1,4 +1,86 @@
 Attribute VB_Name = "mdlDBRelated"
+Public Sub LoadFieldSettings()
+    Dim conn As ADODB.Connection
+    Dim rs As ADODB.Recordset
+    Dim sConnString As String
+    Dim DictTitlesRange As Range, c As Range
+    Dim connStringConfigName As String
+    Dim err_str As String
+    
+    connStringConfigName = GetConfigValue("Conn_Dict_Current")
+    
+    If Not IsNull(GetConfigValue(connStringConfigName)) Then
+        sConnString = GetConfigValue(connStringConfigName)
+    Else
+        MsgBox "This operation cannot be completed. Vefrify that connection string is provided in the configuration section of the application.", vbCritical, "Loading Dictionary to Master Template"
+        Exit Sub
+    End If
+    
+    ' Create the Connection and Recordset objects.
+    Set conn = New ADODB.Connection
+    Set rs = New ADODB.Recordset
+    
+    On Error GoTo err_connection
+    'Open the connection and execute.
+    conn.Open sConnString
+    On Error GoTo 0
+    
+    'TODO - show user a list of posstible profiles and last loaded profile name
+    
+    On Error GoTo err_recordset
+    'fill recordset with data
+    Set rs = conn.Execute(Replace(GetConfigValue("FieldSetting_Get_Statement"), "{{profile_name}}", GetConfigValue("FieldSetting_LastLoadedProfile")))
+    On Error GoTo 0
+    
+    With Worksheets(cSettingsWorksheetName)
+        'if returned recordset is not empty load received data for the current field
+        'there is an expectation that range for the values form DB starts on the 3rd row under the field name and consists of 3 columns
+        If Not rs.EOF Then
+            'clean the area of insertion first; it will select all fields actually used in the first column (corresponding to the current field header) and offset to 2 columns to the right
+
+            Set c = Range(GetConfigValue("FieldSetting_Range_First_Cell"))
+
+            '.Range(c.Offset(1, 0).Address, c.offset(.usedrange.rows.count - c.row,.UsedRange.Columns.Count - c.Column).address).address
+            .Range(c.Offset(1, 0).Address, c.Offset(.UsedRange.Rows.Count - c.Row, .UsedRange.Columns.Count - c.Column).Address).Clear
+            
+            'copy fresh set of dictionary data
+            c.Offset(1, 0).CopyFromRecordset rs
+            
+
+        Else 'go here if DB does not return any data for the given profile
+            'TODO - put handler for this case
+            
+        End If
+    End With
+    
+clean_up:
+    ' Clean up
+    If CBool(conn.State And adStateOpen) Then conn.Close
+    Set conn = Nothing
+    Set rs = Nothing
+    
+    Exit Sub
+    
+err_connection:
+    err_str = "The database cannot be reached or access denied. Please contact your IT admin to resolve the issue." & vbCrLf & vbCrLf & _
+                "Detailed error description: " & vbCrLf & Err.Description
+    
+    MsgBox err_str, vbCritical, "Loading Dictionary to Master Template"
+    
+    GoTo clean_up
+    Exit Sub
+    
+err_recordset:
+    err_str = "Retrieving data from database generated an error. The process was aborted. Please contact your IT admin to resolve the issue." & vbCrLf & vbCrLf & _
+                "Detailed error description: " & vbCrLf & Err.Description
+    
+    MsgBox err_str, vbCritical, "Loading Dictionary to Master Template"
+    
+    GoTo clean_up
+    Exit Sub
+    
+End Sub
+
 Public Sub LoadDictionaryValues()
     Dim conn As ADODB.Connection
     Dim rs As ADODB.Recordset
@@ -7,6 +89,7 @@ Public Sub LoadDictionaryValues()
     Dim updatedFields As New StringBuilder
     Dim notUpdatedFields As New StringBuilder
     Dim connStringConfigName As String
+    Dim err_str As String
     
     'SSQLDBAT015001\TESTINS1
     'localhost\sqlexpress;
@@ -87,11 +170,6 @@ Public Sub LoadDictionaryValues()
         End If
     End With
     
-    ' Clean up
-    If CBool(conn.State And adStateOpen) Then conn.Close
-    Set conn = Nothing
-    Set rs = Nothing
-    
     updatedFields.Delimiter = ", "
     notUpdatedFields.Delimiter = ", "
     
@@ -101,15 +179,21 @@ Public Sub LoadDictionaryValues()
             & "**** Not Updated fields ****" & vbCrLf & Replace(notUpdatedFields.toString, ", ", vbCrLf) _
             , vbInformation, "Dictionary DB sync"
             
+clean_up:
+    ' Clean up
+    If CBool(conn.State And adStateOpen) Then conn.Close
+    Set conn = Nothing
+    Set rs = Nothing
+    
     Exit Sub
     
-    Dim err_str As String
-
 err_connection:
     err_str = "The database cannot be reached or access denied. Please contact your IT admin to resolve the issue." & vbCrLf & vbCrLf & _
                 "Detailed error description: " & vbCrLf & Err.Description
     
     MsgBox err_str, vbCritical, "Loading Dictionary to Master Template"
+    
+    GoTo clean_up
     Exit Sub
     
 err_recordset:
@@ -117,6 +201,8 @@ err_recordset:
                 "Detailed error description: " & vbCrLf & Err.Description
     
     MsgBox err_str, vbCritical, "Loading Dictionary to Master Template"
+    
+    GoTo clean_up
     Exit Sub
             
 End Sub
