@@ -1,26 +1,53 @@
 Attribute VB_Name = "mdlDBRelated"
+Option Explicit
 
-Public Function SelectFieldSettingProfile() As String
+Enum FormUseCases
+    FieldSettingProfile = 0
+End Enum
+
+Public popUpFormResponseIndex As Integer
+Public dictProfiles As New Dictionary
+
+
+Public Function SelectFieldSettingProfile() As Integer
     'TODO - create UI to show list of profiles and select one
-    SelectFieldSettingProfile = GetConfigValue("FieldSetting_LastLoadedProfile")
+    
+    PrepareForm (FieldSettingProfile)
+    
+    popUpFormResponseIndex = -1
+    frmSelection.Show
+    
+    'Debug.Print frmSelection.cmbProfileList.Value
+    
+    'SelectFieldSettingProfile = GetConfigValue("FieldSetting_LastLoadedProfile")
+    SelectFieldSettingProfile = popUpFormResponseIndex
 End Function
 
-Public Sub LoadFieldSettings()
-    
-    Dim setting_profile As String
+Public Sub PrepareForm(use_case As FormUseCases)
+    Select Case use_case
+        Case FieldSettingProfile
+            frmSelection.Caption = "Master Template Profiles"
+            PopulateFieldSettingProfilesList frmSelection.cmbProfileList
+            
+    End Select
+End Sub
+
+
+Public Sub PopulateFieldSettingProfilesList(ByRef cmb As ComboBox)
+    'cmb.AddItem
+    Dim lastLoadedProfile As String
     Dim conn As ADODB.Connection
     Dim rs As ADODB.recordset
     Dim sConnString As String
-    Dim DictTitlesRange As Range, c As Range
+    Dim c As Range
     Dim connStringConfigName As String
     Dim err_str As String
+    Dim i As Integer
+    Dim prof_details As clsFieldSettingProfile
     
-    Const msgTitle = "Loading Field Setting Profile to Master Template"
+    Const msgTitle = "Retrieving Field Setting Profiles"
     
-    setting_profile = SelectFieldSettingProfile() 'GetConfigValue("FieldSetting_LastLoadedProfile")
-    
-    'if no profile selected, exit sub
-    If Len(Trim(setting_profile)) = 0 Then Exit Sub
+    lastLoadedProfile = GetConfigValue("FieldSetting_LastLoadedProfile")
     
     connStringConfigName = GetConfigValue("Conn_Dict_Current")
     
@@ -42,7 +69,100 @@ Public Sub LoadFieldSettings()
     
     On Error GoTo err_recordset
     'fill recordset with data
-    Set rs = conn.Execute(Replace(GetConfigValue("FieldSetting_Get_Statement"), "{{profile_name}}", setting_profile))
+    Set rs = conn.Execute(GetConfigValue("FieldSetting_Get_Profiles"))
+    On Error GoTo 0
+    
+    If Not rs.EOF Then
+        
+        i = 0
+        dictProfiles.RemoveAll
+        
+        While Not rs.EOF
+            Set prof_details = New clsFieldSettingProfile
+            
+            prof_details.Name = rs.Fields(1).Value
+            prof_details.ID = rs.Fields(0).Value
+            prof_details.Description = rs.Fields(2).Value
+            prof_details.Owner = rs.Fields(3).Value
+            prof_details.Created = rs.Fields(4).Value
+            
+            dictProfiles.Add i, prof_details
+            cmb.AddItem rs.Fields(1).Value
+            
+            i = i + 1
+            rs.MoveNext
+        Wend
+    Else
+        'no profiles were returned
+    End If
+    
+    
+clean_up:
+    ' Clean up
+    If CBool(conn.State And adStateOpen) Then conn.Close
+    Set conn = Nothing
+    Set rs = Nothing
+    
+    Exit Sub
+    
+err_connection:
+    err_str = "The database cannot be reached or access is denied. Please contact your IT admin to resolve the issue." & vbCrLf & vbCrLf & _
+                "Detailed error description: " & vbCrLf & Err.Description
+    
+    MsgBox err_str, vbCritical, msgTitle
+    
+    GoTo clean_up
+    Exit Sub
+    
+err_recordset:
+    err_str = "Retrieving data from database generated an error. The process was aborted. Please contact your IT admin to resolve the issue." & vbCrLf & vbCrLf & _
+                "Detailed error description: " & vbCrLf & Err.Description
+    
+    MsgBox err_str, vbCritical, msgTitle
+    
+    GoTo clean_up
+    Exit Sub
+End Sub
+
+Public Sub LoadFieldSettings()
+    
+    Dim setting_profile As Integer
+    Dim conn As ADODB.Connection
+    Dim rs As ADODB.recordset
+    Dim sConnString As String
+    Dim c As Range
+    Dim connStringConfigName As String
+    Dim err_str As String
+    
+    Const msgTitle = "Loading Field Setting Profile to Master Template"
+    
+    setting_profile = SelectFieldSettingProfile() 'GetConfigValue("FieldSetting_LastLoadedProfile")
+    
+    'if no profile selected, exit sub
+    'If Len(Trim(setting_profile)) = 0 Then Exit Sub
+    If setting_profile < 0 Then Exit Sub
+    
+    connStringConfigName = GetConfigValue("Conn_Dict_Current")
+    
+    If Not IsNull(GetConfigValue(connStringConfigName)) Then
+        sConnString = GetConfigValue(connStringConfigName)
+    Else
+        MsgBox "This operation cannot be completed. Vefrify that connection string is provided in the configuration section of the application.", vbCritical, msgTitle
+        Exit Sub
+    End If
+    
+    ' Create the Connection and Recordset objects.
+    Set conn = New ADODB.Connection
+    Set rs = New ADODB.recordset
+    
+    On Error GoTo err_connection
+    'Open the connection and execute.
+    conn.Open sConnString
+    On Error GoTo 0
+    
+    On Error GoTo err_recordset
+    'fill recordset with data
+    Set rs = conn.Execute(Replace(GetConfigValue("FieldSetting_Get_Statement"), "{{profile_id}}", dictProfiles(setting_profile).ID))
     On Error GoTo 0
     
     With Worksheets(cSettingsWorksheetName)
@@ -62,12 +182,16 @@ Public Sub LoadFieldSettings()
             'copy all information from the recordset to the page (starting with the second row)
             c.Offset(1, 0).CopyFromRecordset rs
             
-            MsgBox "Loading of Field Setting profile '" & setting_profile & "' completed successfully!" & vbCrLf & vbCrLf & _
+            'save name of the last loaded profile
+            If SetConfigValue("FieldSetting_LastLoadedProfile", dictProfiles(setting_profile).Name) <= 0 Then
+                'TODO - make a decision what to do if the last loaded profile was not saved to the config section
+            End If
+            
+            MsgBox "Loading of Field Setting profile '" & dictProfiles(setting_profile).Name & "' completed successfully!" & vbCrLf & vbCrLf & _
                     "Note: Column headers of the 'RawData' and 'Validated' tabs will be updated accordingly.", vbInformation, msgTitle
             
         Else 'go here if DB does not return any data for the given profile
-            'TODO - put handler for this case
-            MsgBox "Profile '" & setting_profile & "' was not found or no data was returned for it. Field Setting loading process was aborted!" & vbCrLf & "Please contact your IT admin to resolve the issue.", vbCritical, msgTitle
+            MsgBox "Profile '" & dictProfiles(setting_profile) & "' was not found or no data was returned for it. Field Setting loading process was aborted!" & vbCrLf & "Please contact your IT admin to resolve the issue.", vbCritical, msgTitle
         End If
     End With
     
@@ -80,7 +204,7 @@ clean_up:
     Exit Sub
     
 err_connection:
-    err_str = "The database cannot be reached or access denied. Please contact your IT admin to resolve the issue." & vbCrLf & vbCrLf & _
+    err_str = "The database cannot be reached or access is denied. Please contact your IT admin to resolve the issue." & vbCrLf & vbCrLf & _
                 "Detailed error description: " & vbCrLf & Err.Description
     
     MsgBox err_str, vbCritical, msgTitle
@@ -249,7 +373,7 @@ clean_up:
     Exit Sub
     
 err_connection:
-    err_str = "The database cannot be reached or access denied. Please contact your IT admin to resolve the issue." & vbCrLf & vbCrLf & _
+    err_str = "The database cannot be reached or access is denied. Please contact your IT admin to resolve the issue." & vbCrLf & vbCrLf & _
                 "Detailed error description: " & vbCrLf & Err.Description
     
     MsgBox err_str, vbCritical, msgTitle
@@ -267,4 +391,6 @@ err_recordset:
     Exit Sub
             
 End Sub
+
+
 
