@@ -27,6 +27,9 @@ Public Sub PrepareForm(use_case As FormUseCases)
     Select Case use_case
         Case FieldSettingProfile
             frmSelection.Caption = "Master Template Profiles"
+'            frmSelection.Height = 193
+'            frmSelection.Width = 511
+'
             PopulateFieldSettingProfilesList frmSelection.cmbProfileList
             
     End Select
@@ -87,7 +90,12 @@ Public Sub PopulateFieldSettingProfilesList(ByRef cmb As ComboBox)
             prof_details.Created = rs.Fields(4).Value
             
             dictProfiles.Add i, prof_details
-            cmb.AddItem rs.Fields(1).Value
+            cmb.AddItem prof_details.Name 'rs.Fields(1).Value
+            
+            'select previously selected items as a default choise
+            If prof_details.Name = lastLoadedProfile Then
+                cmb.ListIndex = i
+            End If
             
             i = i + 1
             rs.MoveNext

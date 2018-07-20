@@ -1061,6 +1061,11 @@ Public Sub LoadCustomMenus()
                 .OnAction = "LoadDictionaryValues"
                 .FaceId = 3000
             End With
+            With .Controls.Add(Type:=msoControlButton)
+                .Caption = "Load Field Setting Profile"
+                .OnAction = "LoadFieldSettings"
+                .FaceId = 3000
+            End With
         End With
     
     End With
