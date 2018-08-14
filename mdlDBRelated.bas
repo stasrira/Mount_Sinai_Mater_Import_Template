@@ -12,35 +12,100 @@ Public dictProfiles As New Dictionary
 Public Function SelectFieldSettingProfile() As Integer
     'TODO - create UI to show list of profiles and select one
     
-    PrepareForm (FieldSettingProfile)
+    popUpFormResponseIndex = -1 'set the default value
     
-    popUpFormResponseIndex = -1
-    frmSelection.Show
+    If PrepareForm(FieldSettingProfile) Then
+           
+        frmSelection.Show
+        
+        'Debug.Print frmSelection.cmbProfileList.Value
+        
+        'SelectFieldSettingProfile = GetConfigValue("FieldSetting_LastLoadedProfile")
+    End If
     
-    'Debug.Print frmSelection.cmbProfileList.Value
-    
-    'SelectFieldSettingProfile = GetConfigValue("FieldSetting_LastLoadedProfile")
-    SelectFieldSettingProfile = popUpFormResponseIndex
+    SelectFieldSettingProfile = popUpFormResponseIndex 'this value can be overwritten in the form frmSelection
 End Function
 
-Public Sub PrepareForm(use_case As FormUseCases)
+Public Function PrepareForm(use_case As FormUseCases) As Boolean
     Select Case use_case
         Case FieldSettingProfile
             frmSelection.Caption = "Master Template Profiles"
 '            frmSelection.Height = 193
 '            frmSelection.Width = 511
 '
-            PopulateFieldSettingProfilesList frmSelection.cmbProfileList
+            PrepareForm = PopulateFieldSettingProfilesList(frmSelection.cmbProfileList)
             
     End Select
-End Sub
+End Function
 
+Public Function PopulateFieldSettingProfilesList(ByRef cmb As ComboBox) As Boolean
+    Dim lastLoadedProfile As String
+    Dim clRs As New clsSQLRecordset
+    
+    Dim rs As ADODB.Recordset
+    Dim i As Integer
+    Dim prof_details As clsFieldSettingProfile
+    
+    Const msgTitle = "Retrieving Field Setting Profiles"
+    
+    lastLoadedProfile = GetConfigValue("FieldSetting_LastLoadedProfile")
+    
+    clRs.errProcessNameTitle = msgTitle
+    Set rs = clRs.GetRecordset(GetConfigValue("FieldSetting_Get_Profiles"))
+    
+    If Not rs Is Nothing Then
+        If Not rs.EOF Then
+            
+            i = 0
+            dictProfiles.RemoveAll
+            
+            While Not rs.EOF
+                Set prof_details = New clsFieldSettingProfile
+                
+                prof_details.Name = rs.Fields(1).Value
+                prof_details.ID = rs.Fields(0).Value
+                prof_details.Description = rs.Fields(2).Value
+                prof_details.Owner = rs.Fields(3).Value
+                prof_details.Created = rs.Fields(4).Value
+                
+                dictProfiles.Add i, prof_details
+                cmb.AddItem prof_details.Name 'rs.Fields(1).Value
+                
+                'select previously selected items as a default choise
+                If prof_details.Name = lastLoadedProfile Then
+                    cmb.ListIndex = i
+                End If
+                
+                i = i + 1
+                rs.MoveNext
+            Wend
+            
+            PopulateFieldSettingProfilesList = True
+        Else
+            'no profiles were returned
+            GoTo no_profiles
+        End If
+    Else
+        'no profiles were returned
+no_profiles:
+        MsgBox "No profiles were returned from the database.", vbExclamation, msgTitle
+        
+        PopulateFieldSettingProfilesList = False
+    End If
+    
+    Set clRs = Nothing
+    
+End Function
 
-Public Sub PopulateFieldSettingProfilesList(ByRef cmb As ComboBox)
-    'cmb.AddItem
+Public Sub PopulateFieldSettingProfilesList_old(ByRef cmb As ComboBox)
+    
+'    'temporary switch to a new version
+'    PopulateFieldSettingProfilesList_new cmb
+'    Exit Sub
+    
     Dim lastLoadedProfile As String
     Dim conn As ADODB.Connection
-    Dim rs As ADODB.recordset
+    Dim rs As ADODB.Recordset
     Dim sConnString As String
     Dim c As Range
     Dim connStringConfigName As String
@@ -63,7 +128,7 @@ Public Sub PopulateFieldSettingProfilesList(ByRef cmb As ComboBox)
     
     ' Create the Connection and Recordset objects.
     Set conn = New ADODB.Connection
-    Set rs = New ADODB.recordset
+    Set rs = New ADODB.Recordset
     
     On Error GoTo err_connection
     'Open the connection and execute.
@@ -136,7 +201,7 @@ Public Sub LoadFieldSettings()
     
     Dim setting_profile As Integer
     Dim conn As ADODB.Connection
-    Dim rs As ADODB.recordset
+    Dim rs As ADODB.Recordset
     Dim sConnString As String
     Dim c As Range
     Dim connStringConfigName As String
@@ -161,7 +226,7 @@ Public Sub LoadFieldSettings()
     
     ' Create the Connection and Recordset objects.
     Set conn = New ADODB.Connection
-    Set rs = New ADODB.recordset
+    Set rs = New ADODB.Recordset
     
     On Error GoTo err_connection
     'Open the connection and execute.
@@ -231,7 +296,7 @@ err_recordset:
     
 End Sub
 
-Sub LoadCaptionsForRecordset(firstCellOfHeaderRow As Range, rsData As ADODB.recordset)
+Sub LoadCaptionsForRecordset(firstCellOfHeaderRow As Range, rsData As ADODB.Recordset)
     Dim i As Integer
     Dim r As Range
     
@@ -249,7 +314,7 @@ Sub LoadCaptionsForRecordset(firstCellOfHeaderRow As Range, rsData As ADODB.reco
 End Sub
 
 'TODO: Is this function necessary?
-Function ValidatePageHeaders(firstCellOfHeaderRow As Range, rsData As ADODB.recordset) As Boolean
+Function ValidatePageHeaders(firstCellOfHeaderRow As Range, rsData As ADODB.Recordset) As Boolean
     Dim i As Integer
     
     With firstCellOfHeaderRow.Worksheet
@@ -274,7 +339,7 @@ End Function
 
 Public Sub LoadDictionaryValues()
     Dim conn As ADODB.Connection
-    Dim rs As ADODB.recordset
+    Dim rs As ADODB.Recordset
     Dim sConnString As String
     Dim DictTitlesRange As Range, c As Range
     Dim updatedFields As New StringBuilder
@@ -310,7 +375,7 @@ Public Sub LoadDictionaryValues()
  
     ' Create the Connection and Recordset objects.
     Set conn = New ADODB.Connection
-    Set rs = New ADODB.recordset
+    Set rs = New ADODB.Recordset
     
     With Worksheets(cDictionayWorksheetName)
         'set a range that covers first row with list of cells that have some dictionary info
