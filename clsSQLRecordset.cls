@@ -9,17 +9,19 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 Option Explicit
 
-Public rs As ADODB.Recordset
+Private rs As ADODB.Recordset
+Private clsConn As New clsSQLConnection
 
 Public errProcessNameTitle As String 'this variable will be assigned with a default value at initiation that can be overwritten
 Public errDefaultMsg As String 'this variable will be assigned with a default value at initiation that can be overwritten
 
 Public Function GetRecordset(sqlStatement As String, Optional strConn As String = "") As ADODB.Recordset
-    Dim clsConn As New clsSQLConnection
+    
     Dim conn As ADODB.Connection
     Dim err_str As String
     
     If Len(Trim(errProcessNameTitle)) > 0 Then clsConn.errProcessNameTitle = errProcessNameTitle
+    
     Set conn = clsConn.OpenConnection(strConn)
     If Not conn Is Nothing Then
         Set rs = New ADODB.Recordset
@@ -34,6 +36,8 @@ Public Function GetRecordset(sqlStatement As String, Optional strConn As String 
     Else
         Set GetRecordset = Nothing
     End If
+    
+    Exit Function
     
 clean_up:
     ' Clean up
@@ -64,4 +68,5 @@ End Sub
 
 Private Sub Class_Terminate()
     Set rs = Nothing
+    Set clsConn = Nothing
 End Sub

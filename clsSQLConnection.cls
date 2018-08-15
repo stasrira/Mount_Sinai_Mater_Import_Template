@@ -47,6 +47,8 @@ Public Function OpenConnection(Optional strConn As String = "") As ADODB.Connect
     
     Set OpenConnection = conn
     
+    Exit Function
+    
 clean_up:
     ' Clean up
     If CBool(conn.State And adStateOpen) Then conn.Close
@@ -67,7 +69,6 @@ err_connection:
 End Function
 
 Private Sub Class_Initialize()
-
     'assign default values
     cofigConnVariableName = "Conn_Dict_Current"
     errProcessNameTitle = "Database communication" '"Retrieving Field Setting Profiles"
@@ -76,7 +77,7 @@ Private Sub Class_Initialize()
 End Sub
 
 Private Sub Class_Terminate()
-    ' Clean up
+    'Clean up
     If Not conn Is Nothing Then
         If CBool(conn.State And adStateOpen) Then conn.Close
         Set conn = Nothing
