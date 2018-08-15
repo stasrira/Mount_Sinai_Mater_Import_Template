@@ -51,8 +51,9 @@ Public Function PopulateFieldSettingProfilesList(ByRef cmb As ComboBox) As Boole
     clRs.errProcessNameTitle = msgTitle
     Set rs = clRs.GetRecordset(GetConfigValue("FieldSetting_Get_Profiles"))
     
-    If Not rs Is Nothing Then
-        If Not rs.EOF Then
+    If Not rs Is Nothing Then  'if returned recordset is an object
+        
+        If Not rs.EOF Then 'if returned recordset is not empty load received data
             
             i = 0
             dictProfiles.RemoveAll
@@ -115,30 +116,37 @@ Public Sub LoadFieldSettings()
     Set rs = clRs.GetRecordset(Replace(GetConfigValue("FieldSetting_Get_Statement"), "{{profile_id}}", dictProfiles(setting_profile).ID))
     
     With Worksheets(cSettingsWorksheetName)
-        'if returned recordset is not empty load received data
-        If Not rs.EOF Then
-            'get the address of the fist cell of the range used on the page
-            Set c = .Range(GetConfigValue("FieldSetting_Range_First_Cell"))
+        
+        If Not rs Is Nothing Then 'if returned recordset is an object
             
-           'update captions for the newly loaded recordset
-            LoadCaptionsForRecordset c, rs
-            
-            'clean the area of insertion first; it will select all fields actually used on the page; cleaning won't be applied to the first row containing column headers
-            .Range(c.Offset(1, 0).Address, c.Offset(.UsedRange.Rows.Count - c.Row, .UsedRange.Columns.Count - c.Column).Address).ClearContents
-            
-            'copy all information from the recordset to the page (starting with the second row)
-            c.Offset(1, 0).CopyFromRecordset rs
-            
-            'save name of the last loaded profile
-            If SetConfigValue("FieldSetting_LastLoadedProfile", dictProfiles(setting_profile).Name) <= 0 Then
-                'TODO - make a decision what to do if the last loaded profile was not saved to the config section
+            If Not rs.EOF Then 'if returned recordset is not empty load received data
+                'get the address of the fist cell of the range used on the page
+                Set c = .Range(GetConfigValue("FieldSetting_Range_First_Cell"))
+                
+               'update captions for the newly loaded recordset
+                LoadCaptionsForRecordset c, rs
+                
+                'clean the area of insertion first; it will select all fields actually used on the page; cleaning won't be applied to the first row containing column headers
+                .Range(c.Offset(1, 0).Address, c.Offset(.UsedRange.Rows.Count - c.Row, .UsedRange.Columns.Count - c.Column).Address).ClearContents
+                
+                'copy all information from the recordset to the page (starting with the second row)
+                c.Offset(1, 0).CopyFromRecordset rs
+                
+                'save name of the last loaded profile
+                If SetConfigValue("FieldSetting_LastLoadedProfile", dictProfiles(setting_profile).Name) <= 0 Then
+                    'TODO - make a decision what to do if the last loaded profile was not saved to the config section
+                End If
+                
+                MsgBox "Loading of Field Setting profile '" & dictProfiles(setting_profile).Name & "' completed successfully!" & vbCrLf & vbCrLf & _
+                        "Note: Column headers of the 'RawData' and 'Validated' tabs will be updated accordingly.", vbInformation, msgTitle
+                
+            Else 'go here if DB does not return any data for the given profile
+                'MsgBox "Profile '" & dictProfiles(setting_profile) & "' was not found or no data was returned for it. Field Setting loading process was aborted!" & vbCrLf & "Please contact your IT admin to resolve the issue.", vbCritical, msgTitle
+                GoTo empty_recordset
             End If
-            
-            MsgBox "Loading of Field Setting profile '" & dictProfiles(setting_profile).Name & "' completed successfully!" & vbCrLf & vbCrLf & _
-                    "Note: Column headers of the 'RawData' and 'Validated' tabs will be updated accordingly.", vbInformation, msgTitle
-            
-        Else 'go here if DB does not return any data for the given profile
-            MsgBox "Profile '" & dictProfiles(setting_profile) & "' was not found or no data was returned for it. Field Setting loading process was aborted!" & vbCrLf & "Please contact your IT admin to resolve the issue.", vbCritical, msgTitle
+        Else
+empty_recordset:
+            MsgBox "Profile '" & dictProfiles(setting_profile).Name & "' was not found or no data was returned for it. Field Setting loading process was aborted!" & vbCrLf & "Please contact your IT admin to resolve the issue.", vbCritical, msgTitle
         End If
     End With
     
