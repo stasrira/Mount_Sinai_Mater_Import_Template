@@ -1,9 +1,9 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} frmSelection 
-   ClientHeight    =   2730
-   ClientLeft      =   -45
-   ClientTop       =   -150
-   ClientWidth     =   8310.001
+   ClientHeight    =   2780
+   ClientLeft      =   -130
+   ClientTop       =   -450
+   ClientWidth     =   8180
    OleObjectBlob   =   "frmSelection.frx":0000
    StartUpPosition =   1  'CenterOwner
 End
@@ -61,3 +61,6 @@ Private Sub cmdLoad_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift 
     End If
 End Sub
 
+Private Sub UserForm_Click()
+
+End Sub
