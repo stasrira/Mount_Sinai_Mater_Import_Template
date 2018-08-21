@@ -2,7 +2,7 @@ Attribute VB_Name = "mdlGeneric"
 Option Explicit
 
 Public Const cHelpTitle = "Sample Entry Validation Tool"
-Public Const cHelpVersion = "1.008"
+Public Const cHelpVersion = "1.009"
 Public Const cHelpDescription = "Questions and technical support: email to stasrirak.ms@gmail.com"
 
 Public Const cRawDataWorksheetName = "RawData"
@@ -1061,6 +1061,11 @@ Public Sub LoadCustomMenus()
                 .OnAction = "LoadDictionaryValues"
                 .FaceId = 3000
             End With
+            With .Controls.Add(Type:=msoControlButton)
+                .Caption = "Load Field Setting Profile"
+                .OnAction = "LoadFieldSettings"
+                .FaceId = 3000
+            End With
         End With
     
     End With
@@ -1111,8 +1116,6 @@ Public Sub PasteAsSwitch()
     On Error GoTo 0
 End Sub
 
-
-
 Public Function GetConfigValue(Key As String) As Variant
     With Worksheets(cConfigWorksheetName)
         Dim fnr As Range
@@ -1121,7 +1124,7 @@ Public Function GetConfigValue(Key As String) As Variant
         iRows = .UsedRange.Rows.Count 'number of actually used rows
         
         'identify range of actually used cells on the given spreadsheet and apply Find function
-        Set fnr = .Range(cConfig_FirstFieldCell & ":" & Cells(iRows, 1).Address).Find(Key, LookIn:=xlValues) 'fnr will contain the cell matching the find criteria
+        Set fnr = .Range(cConfig_FirstFieldCell & ":" & .Cells(iRows, 1).Address).Find(Key, LookIn:=xlValues) 'fnr will contain the cell matching the find criteria
         
         'if fnr is not Nothing, retrun the associate value
         If Not fnr Is Nothing Then
@@ -1130,4 +1133,34 @@ Public Function GetConfigValue(Key As String) As Variant
             GetConfigValue = Null
         End If
     End With
+End Function
+
+Public Function SetConfigValue(Key As String, Value As String) As Integer
+    With Worksheets(cConfigWorksheetName)
+        Dim fnr As Range
+        Dim iRows As Integer
+        
+        iRows = .UsedRange.Rows.Count 'number of actually used rows
+        
+        'identify range of actually used cells on the given spreadsheet and apply Find function
+        Set fnr = .Range(cConfig_FirstFieldCell & ":" & .Cells(iRows, 1).Address).Find(Key, LookIn:=xlValues) 'fnr will contain the cell matching the find criteria
+        
+        If Not fnr Is Nothing Then
+            'if fnr is not Nothing, set the given Value for the requested Key
+            fnr.Offset(0, 1).Value = Value 'it set the value of the found config cell to the passed Value
+            
+            SetConfigValue = 1
+        Else
+            'if the requested Key was not found, add a new entry for the key
+            Set fnr = .Range(Cells(iRows, 1).Offset(1, 0).Address)
+            fnr.Value = Key
+            fnr.Offset(0, 1).Value = Value
+            
+            SetConfigValue = 2
+        End If
+    End With
+    
+    Exit Function
+    
+'TODO - add error handler
 End Function
