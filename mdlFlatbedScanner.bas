@@ -1,9 +1,9 @@
 Attribute VB_Name = "mdlFlatbedScanner"
-'TODO - the following constants should be coming from the config file
-Public Const HostIP = "10.90.121.149"
-Public Const ScpiPort_stas = 2500
-Public Const Winsock_Ver = 512 'Version 1.1 (1*256 + 1) = 257; version 2.0 (2*256 + 0) = 512
-Public Const ReadScanDelay = 5000 'this is a delay to allow scanner to perfomr the actual scan, while the execution of the macro is on hold
+'Moved to Config Tab
+'Public Const FBS_HostIP = "10.90.121.149"
+'Public Const FBS_ScpiPort = 2500
+'Public Const Winsock_Ver = 512 'Version 1.1 (1*256 + 1) = 257; version 2.0 (2*256 + 0) = 512
+'Public Const ReadScanDelay = 5000 'this is a delay to allow scanner to perfomr the actual scan, while the execution of the macro is on hold
 
 'TODO - the following constants should be coming from the config file
 Const Scanner_OKStatus = "OK"
@@ -26,10 +26,10 @@ Const msgScanStartedStatus = "Scan process has started"
 Const msgErrorOccuredStatus = "Error has occured. Scan Process was aborted..."
 Const msgBoxTitle = "Flatbed Scanner"
 
-'TODO - the following constants should be coming from the config file
-Public Const ScanResultsTargetLocation = "A1"
-Public Const ScanResultsColumnsUsed = 4
-Public Const ScanResultsStatusLocation = "F2"
+'Moved to config tab
+'Public Const ScanResultsTargetLocation = "A1"
+'Public Const ScanResultsColumnsUsed = 4
+'Public Const ScanResultsStatusLocation = "F2"
 
 Enum Socket_command_type
     Start_sc = 1
@@ -40,10 +40,15 @@ Enum Socket_command_type
     End_sc = 6
 End Enum
 
+Type ScanReadStatus
+    status As Boolean
+    msg As String
+End Type
+
 Function get_hostname()
     
     'TODO - read IP address from config file
-    get_hostname = HostIP
+    get_hostname = GetConfigValue("FBS_HostIP") 'originally used const - FBS_HostIP
     
 End Function
 
@@ -51,7 +56,7 @@ Sub Report_Status(strStatus As String, Optional vbColor As Long = vbBlack, Optio
     Dim status_range As Range
     
     'TODO - store this address in the config section/file
-    Set status_range = Worksheets(cFlatbedScansWorksheetName).Range(ScanResultsStatusLocation)
+    Set status_range = Worksheets(cFlatbedScansWorksheetName).Range(GetConfigValue("FBS_ScanResultsStatusLocation")) 'originally used const - ScanResultsStatusLocation
     
     status_range.Value = strStatus
     status_range.Font.Color = vbColor
@@ -60,19 +65,22 @@ End Sub
 
 Sub Clean_Scan_Results()
     Dim r As Range
+    Dim ScanResultsTargetLocation As String, ScanResultsColumnsUsed As Integer
+    
+    ScanResultsTargetLocation = GetConfigValue("FBS_ScanResultsTargetLocation")
+    ScanResultsColumnsUsed = CInt(GetConfigValue("FBS_ScanResultsColumnsUsed"))
     
     With Worksheets(cFlatbedScansWorksheetName) 'Sheets(2)
         'clear main scan area; identify number of actually used rows and use number of columns specified in ScanResultsColumnsUsed const
         Set r = .Range(ScanResultsTargetLocation & ":" & .Range(ScanResultsTargetLocation).Offset(.Rows.Count - .Range(ScanResultsTargetLocation).Row).End(xlUp).Offset(0, ScanResultsColumnsUsed - 1).Address)
         r.Clear
         
-        '.Range(ScanResultsStatusLocation).Clear
         Clean_Scan_Status
     End With
 End Sub
 
 Sub Clean_Scan_Status()
-    Worksheets(cFlatbedScansWorksheetName).Range(ScanResultsStatusLocation).Clear
+    Worksheets(cFlatbedScansWorksheetName).Range(GetConfigValue("FBS_ScanResultsStatusLocation")).Clear
 End Sub
 
 Sub FBS_Scan()
@@ -81,8 +89,11 @@ Sub FBS_Scan()
     Dim recvBuf As String '* 4096 '*1024
     Dim rackId As String, strScnState As String
     Dim finalMsg As String, finalMsgStatus As VbMsgBoxStyle
+    Dim scanStatus As ScanReadStatus
     
-    MsgBox msgStartScanning, vbInformation, msgBoxTitle
+    If MsgBox(msgStartScanning & vbCrLf & vbCrLf & _
+        "Click ""OK"" to continue or ""Cancel"" to exit." _
+        , vbOKCancel, msgBoxTitle) = vbCancel Then Exit Sub
     
     Application.EnableEvents = False
     'clean previou scan results
@@ -98,7 +109,7 @@ Sub FBS_Scan()
     
 '    Call get_hostname
     
-    If ValidateSocketOperation(OpenSocket(get_hostname(), ScpiPort_stas), Open_sc) < 0 Then Exit Sub
+    If ValidateSocketOperation(OpenSocket(get_hostname(), GetConfigValue("FBS_ScpiPort")), Open_sc) < 0 Then Exit Sub 'Originally used const - FBS_ScpiPort
     
     Report_Status msgReadingRackIDStatus
     
@@ -119,7 +130,7 @@ Sub FBS_Scan()
     
     If ValidateSocketOperation(SendCommand("scan box"), Send_sc, "Current SendCommand: scan box.") < 0 Then Exit Sub
 '    x = SendCommand("scan box")
-    Sleep (ReadScanDelay) 'wait until scan is completed
+    Sleep (CLng(GetConfigValue("FBS_ReadScanDelay"))) 'wait until scan is completed ' originally used const - ReadScanDelay
     If ValidateSocketOperation(RecvAscii(recvBuf, 1024), Recv_sc, "Current SendCommand: scan box.") < 0 Then Exit Sub
 '    x = RecvAscii(recvBuf, 1024) '1024
     
@@ -139,13 +150,23 @@ Sub FBS_Scan()
     '    x = RecvAscii(recvBuf, 10240)
         
         'read scan results and post them to a page
-        Read_Scan_Results recvBuf, rackId
+        scanStatus = Read_Scan_Results(recvBuf, rackId)
         
-        finalMsg = msgScanCompletedAlert
-        finalMsgStatus = vbInformation
-        Report_Status msgScanCompletedStatus, , vbGreen
+        If scanStatus.status Then
+            finalMsg = msgScanCompletedAlert & vbCrLf & vbCrLf & scanStatus.msg
+            finalMsgStatus = vbInformation
+            
+            Report_Status msgScanCompletedStatus, , vbGreen
+        Else
+            finalMsg = scanStatus.msg
+            GoTo failed_scan
+'            finalMsgStatus = vbCritical
+'            Report_Status msgScanFailedStatus, , vbRed
+        End If
     Else
         finalMsg = msgDataReadinessAlert & vbCrLf & msgReScanNote
+        
+failed_scan:
         finalMsgStatus = vbCritical
         Report_Status msgScanFailedStatus, , vbRed
     End If
@@ -226,6 +247,7 @@ Function ValidateSocketOperation(ret_status As Long, cmd_type As Socket_command_
         
         MsgBox message & extra_com, vbCritical, msgBoxTitle
         
+        Clean_Scan_Status
     End If
     
     ValidateSocketOperation = output_val
@@ -265,15 +287,22 @@ Function Read_Simple_Scanner_Output(input_data As String) As String
     Read_Simple_Scanner_Output = output_val
 End Function
 
-Sub Read_Scan_Results(input_data As String, Optional rackId_val As String = "")
+Function Read_Scan_Results(input_data As String, rackId_val As String) As ScanReadStatus
     'Dim input_data As String
     Dim input_arr() As String
     Dim dest_range As Range, cur_range As Range
+    Dim scanOK_cnt As Integer, scanNotOk_cnt As Integer
+    Dim out_result As ScanReadStatus
+    Dim input_data_original As String
+        
+    'default response
+    out_result.status = False
+    out_result.msg = "Process of reading scan results was not finalized (default message)."
+    input_data_original = input_data
     
     Application.ScreenUpdating = False
     
-    'TODO - store this address in the config section/file
-    Set dest_range = Worksheets(cFlatbedScansWorksheetName).Range(ScanResultsTargetLocation)
+    Set dest_range = Worksheets(cFlatbedScansWorksheetName).Range(GetConfigValue("FBS_ScanResultsTargetLocation"))
     
     'input_data = "OK get scanresult Position,Tube ID,Status,Rack ID,Line End,A01,8019487649,OK,,end text,B01,8019487062,OK,,end text,C01,8019486823,OK,,end text,D01,8019487481,OK,,end text,E01,8019487593,OK,,end text,F01,8019486904,OK,,end text,G01,8019487421,OK,,end text,H01,8019487665,OK,,end text,A02,8019487356,OK,,end text,B02,8019487052,OK,,end text,C02,8019487343,OK,,end text,D02,8019487647,OK,,end text,E02,8019486896,OK,,end text,F02,8019487690,OK,,end text,G02,8019487442,OK,,end text,H02,8019487516,OK,,end text,A03,8019487112,OK,,end text,B03,8019487473,OK,,end text,C03,8019487315,OK,,end text,D03,8019486812,OK,,end text,E03,8019487496,OK,,end text,F03,8019487424,OK,,end text,G03,8019486925,OK,,end text,H03,8019487709,OK,,end text,A04,8019487368,OK,,end text,B04,8019487650,OK,,end text,C04,8019487127,OK,,end text,D04,8019487326,OK,,end text,E04,8019487575,OK,,end text,F04,8019487358,OK,,end text,G04,8019486918,OK,,end text,H04,8019487357,OK,,end text,"
     
@@ -296,7 +325,7 @@ Sub Read_Scan_Results(input_data As String, Optional rackId_val As String = "")
             input_arr = Split(input_data, Scanner_LineEnd_Value)
                         
             'loop through array of results and assign its values to the first cells of rows going down from the given start point (dest_range)
-            For i = LBound(input_arr) To UBound(input_arr)
+            For i = LBound(input_arr) To UBound(input_arr) - 1
                 'Debug.Print input_arr(i)
                 
                 Set cur_range = dest_range.Offset(i, 0)
@@ -326,18 +355,39 @@ Sub Read_Scan_Results(input_data As String, Optional rackId_val As String = "")
                         FieldInfo:=Array( _
                         Array(1, xlTextFormat), Array(2, xlTextFormat), _
                         Array(3, xlTextFormat), Array(4, xlTextFormat))
+                        
+                    'if this is not the 1st (columns header) row, check reported status
+                    If i > 0 Then
+                        'Update counts of scanned and not scanned positions
+                        If cur_range.Offset(0, 2).Value2 = Scanner_OKStatus Then
+                            scanOK_cnt = scanOK_cnt + 1
+                        Else
+                            scanNotOk_cnt = scanNotOk_cnt + 1
+                        End If
+                    End If
                 End If
                 
                 Application.DisplayAlerts = True ' revernt back supression of the Display Alerts
             Next
+            
+            out_result.status = True
+            out_result.msg = "Number of successfully scanned positions: " & CStr(scanOK_cnt) & vbCrLf & _
+                    "Number of not scanned positions: " & CStr(scanNotOk_cnt)
+        Else
+            GoTo bad_scan
         End If
     Else
+bad_scan:
         'Returned status is not OK
-        'TODO - implement logic for not OK cases
+        out_result.status = False
+        out_result.msg = "Scan operation was not completed successfully. Scanner output was the following (first 100 characters): " & vbCrLf & Left(input_data_original, 100)
+        If Len(input_data_original) > 100 Then out_result.msg = out_result.msg & "..."
     End If
     
         
     Application.ScreenUpdating = True
+    
+    Read_Scan_Results = out_result
     
 '    input_arr = Split(input_data, ",end text,")
 '    For i = LBound(input_arr) To UBound(input_arr)
@@ -365,6 +415,6 @@ Sub Read_Scan_Results(input_data As String, Optional rackId_val As String = "")
 '        End If
 '    Next
 
-End Sub
+End Function
 
 

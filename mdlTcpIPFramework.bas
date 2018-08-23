@@ -28,7 +28,7 @@ Function StartIt() As Long
     'Version 1.1 (1*256 + 1) = 257
     'version 2.0 (2*256 + 0) = 512
 
-    Version = Winsock_Ver '512 'ActiveCell.FormulaR1C1
+    Version = GetConfigValue("FBS_Winsock_Ver") 'Originally used const - Winsock_Ver '512 'ActiveCell.FormulaR1C1
     
     'Initialize Winsock DLL
     StartIt = WSAStartup(Version, StartUpInfo)

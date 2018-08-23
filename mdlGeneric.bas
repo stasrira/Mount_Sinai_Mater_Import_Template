@@ -1017,7 +1017,11 @@ Public Sub LoadCustomMenus()
             .OnAction = "ClearFormatingOfWorkbook_MenuCall"
             .FaceId = 108
         End With
-        
+        With .Controls.Add(Type:=msoControlButton)
+            .Caption = "Read Flatbed Scanner"
+            .OnAction = "FBS_Scan"
+            .FaceId = 485 '18
+        End With
            
         'create sub menu "Settings"
         Set cmbSettings = .Controls.Add(Type:=msoControlPopup, Temporary:=True)
