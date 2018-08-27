@@ -184,6 +184,9 @@ Public Sub ValidateWholeWorksheet(Optional startCell As String = "A1", Optional 
         Dim iCols As Integer, iRows As Integer
         Dim rRng As Range, rCell As Range
         
+        'clear all previous validation results
+        Set dictValidationResults = Nothing
+        
         With Worksheets(cRawDataWorksheetName)
             iCols = .UsedRange.Columns.Count 'number of actually used columns
             iRows = .UsedRange.Rows.Count 'number of actually used rows
