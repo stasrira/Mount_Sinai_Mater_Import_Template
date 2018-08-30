@@ -78,13 +78,19 @@ Private Sub CopyValuesToDictionarySheet(sourceRandgeAddress As String, targetRan
     With Worksheets(cFlatbedScansWorksheetName)
         
         Dim targetRange As Range, sourceRange As Range, tRange As Range
+        Dim targetRangeStart As Range, targetRangeEnd As Range
         
         Set sourceRange = .Range(sourceRandgeAddress & ":" & .Range(sourceRandgeAddress).Offset(.Rows.Count - .Range(sourceRandgeAddress).Row).End(xlUp).Address) 'this source range will include all cells (in this column) located below the given cell
         
         With Worksheets(cDictionayWorksheetName)
             'clear target range
-            Set targetRange = .Range(targetRangeAddress & ":" & .Range(targetRangeAddress).Offset(.Rows.Count - .Range(targetRangeAddress).Row).End(xlUp).Address)
-            '.Rows.Count - .Row
+            Set targetRangeStart = .Range(targetRangeAddress)
+            Set targetRangeEnd = .Range(targetRangeAddress).Offset(.Rows.Count - .Range(targetRangeAddress).Row).End(xlUp)
+            If targetRangeEnd.Row < targetRangeStart.Row Then
+                Set targetRangeEnd = targetRangeStart
+            End If
+            Set targetRange = .Range(targetRangeStart.Address & ":" & targetRangeEnd.Address)
+            'Set targetRange = .Range(targetRangeAddress & ":" & .Range(targetRangeAddress).Offset(.Rows.Count - .Range(targetRangeAddress).Row).End(xlUp).Address)
             targetRange.Clear
             targetRange.Offset(0, 2).Clear
             
@@ -92,43 +98,51 @@ Private Sub CopyValuesToDictionarySheet(sourceRandgeAddress As String, targetRan
             Set targetRange = .Range(targetRangeAddress) 'this range points the first cell in column that will hold copied values (i.e. "BA3")
         End With
         
-        'copy unique list of Box IDs from Flatbed scanner sheet to Dictionary. Because Box IDs repeats for muptiple Barcodes, only unique values will be copied to dictionary
-        sourceRange.AdvancedFilter Action:=xlFilterCopy, CopyToRange:=targetRange, Unique:=CopyUniqueValuesOnly
-        'copy the same information (as in previous row) to the 2nd column shifted to the right on 2 cells
-        sourceRange.AdvancedFilter Action:=xlFilterCopy, CopyToRange:=targetRange.Offset(0, 2), Unique:=CopyUniqueValuesOnly
-        '.Range("D1:" & .Range("D1").End(xlDown).Address).AdvancedFilter Action:=xlFilterCopy, CopyToRange:=Worksheets(cDictionayWorksheetName).Range("BC3"), Unique:=True
-        
-        'sort all copied values (in both columns)
-        Set tRange = Worksheets(cDictionayWorksheetName).Range(targetRange.Address & ":" & targetRange.Offset(0, 2).End(xlDown).Address)
-        tRange.Sort key1:=tRange, Header:=xlYes
-        
-        'delete header titles (Excel always copies headers) from the target range
-        targetRange.Offset(0, 2).Delete xlShiftUp
-        targetRange.Delete xlShiftUp 'delete the first cell (that holds title of the source column) from the target range
-        
-         With Worksheets(cDictionayWorksheetName)
-            'this will re-evaluate range of the actually copied values and set number format for each cell to "Text"
-            'clear target range
-            Set targetRange = .Range(targetRangeAddress & ":" & .Range(targetRangeAddress).Offset(.Rows.Count - .Range(targetRangeAddress).Row).End(xlUp).Address)
-            '.Rows.Count - .Row
-            targetRange.NumberFormat = "@" 'this will set number format to Text
-            targetRange.Offset(0, 2).NumberFormat = "@" 'this will set number format to Text
+        If sourceRange.Cells.Count > 1 Then 'proceed with copying data only if the source has some data (beside the header cell)
+            'copy unique list of Box IDs from Flatbed scanner sheet to Dictionary. Because Box IDs repeats for muptiple Barcodes, only unique values will be copied to dictionary
+            sourceRange.AdvancedFilter Action:=xlFilterCopy, CopyToRange:=targetRange, Unique:=CopyUniqueValuesOnly
+            'copy the same information (as in previous row) to the 2nd column shifted to the right on 2 cells
+            sourceRange.AdvancedFilter Action:=xlFilterCopy, CopyToRange:=targetRange.Offset(0, 2), Unique:=CopyUniqueValuesOnly
+            '.Range("D1:" & .Range("D1").End(xlDown).Address).AdvancedFilter Action:=xlFilterCopy, CopyToRange:=Worksheets(cDictionayWorksheetName).Range("BC3"), Unique:=True
             
-            Dim rBlanks1 As Range, rBlanks2 As Range
-            'this will delete blank cells in the target range. This might be needed if flatbed scanner returns some empty values for absent tubes
-            If targetRange.Cells.Count > 1 Then
-                On Error GoTo Err1 'this should catch cases when no empty cells are found - excel generates an error in such situation
+            'sort all copied values (in both columns)
+            Set tRange = Worksheets(cDictionayWorksheetName).Range(targetRange.Address & ":" & targetRange.Offset(0, 2).End(xlDown).Address)
+            tRange.Sort key1:=tRange, Header:=xlYes
+            
+            'delete header titles (Excel always copies headers) from the target range
+            targetRange.Offset(0, 2).Delete xlShiftUp
+            targetRange.Delete xlShiftUp 'delete the first cell (that holds title of the source column) from the target range
+            
+             With Worksheets(cDictionayWorksheetName)
+                'this will re-evaluate range of the actually copied values and set number format for each cell to "Text"
+                'clear target range
+                        'Old code - TO DELETE - Set targetRange = .Range(targetRangeAddress & ":" & .Range(targetRangeAddress).Offset(.Rows.Count - .Range(targetRangeAddress).Row).End(xlUp).Address)
+                'After deleting cells above, Start and End Ranges have to be re-defined
+                Set targetRangeStart = .Range(targetRangeAddress)
+                Set targetRangeEnd = .Range(targetRangeAddress).Offset(.Rows.Count - .Range(targetRangeAddress).Row).End(xlUp)
+                Set targetRange = .Range(targetRangeStart.Address & ":" & targetRangeEnd.Address)
+                '.Rows.Count - .Row
+                targetRange.NumberFormat = "@" 'this will set number format to Text
+                targetRange.Offset(0, 2).NumberFormat = "@" 'this will set number format to Text
                 
-                Set rBlanks1 = targetRange.Offset(0, 2).SpecialCells(xlCellTypeBlanks)
-                Set rBlanks2 = targetRange.SpecialCells(xlCellTypeBlanks)
-                rBlanks1.Delete xlShiftUp
-                rBlanks2.Delete xlShiftUp
-                
+                Dim rBlanks1 As Range, rBlanks2 As Range
+                'this will delete blank cells in the target range. This might be needed if flatbed scanner returns some empty values for absent tubes
+                If targetRange.Cells.Count > 1 Then
+                    On Error GoTo Err1 'this should catch cases when no empty cells are found - excel generates an error in such situation
+                    
+                    Set rBlanks1 = targetRange.Offset(0, 2).SpecialCells(xlCellTypeBlanks)
+                    Set rBlanks2 = targetRange.SpecialCells(xlCellTypeBlanks)
+                    rBlanks1.Delete xlShiftUp
+                    rBlanks2.Delete xlShiftUp
+                    
 Err1:
-                On Error GoTo 0 'resume default error handling
-                
-            End If
-        End With
+                    On Error GoTo 0 'resume default error handling
+                    
+                End If
+            End With
+        End If
         
     End With
 End Sub
+
+

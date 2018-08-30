@@ -2,7 +2,7 @@ Attribute VB_Name = "mdlGeneric"
 Option Explicit
 
 Public Const cHelpTitle = "Sample Entry Validation Tool"
-Public Const cHelpVersion = "1.009"
+Public Const cHelpVersion = "1.010"
 Public Const cHelpDescription = "Questions and technical support: email to stasrirak.ms@gmail.com"
 
 Public Const cRawDataWorksheetName = "RawData"
@@ -183,6 +183,9 @@ Public Sub ValidateWholeWorksheet(Optional startCell As String = "A1", Optional 
 
         Dim iCols As Integer, iRows As Integer
         Dim rRng As Range, rCell As Range
+        
+        'clear all previous validation results
+        Set dictValidationResults = Nothing
         
         With Worksheets(cRawDataWorksheetName)
             iCols = .UsedRange.Columns.Count 'number of actually used columns
