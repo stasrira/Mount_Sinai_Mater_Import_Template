@@ -61,11 +61,11 @@ Public Function PopulateFieldSettingProfilesList(ByRef cmb As ComboBox) As Boole
             While Not rs.EOF
                 Set prof_details = New clsFieldSettingProfile
                 
-                prof_details.Name = rs.Fields(1).Value
-                prof_details.ID = rs.Fields(0).Value
-                prof_details.Description = rs.Fields(2).Value
-                prof_details.Owner = rs.Fields(3).Value
-                prof_details.Created = rs.Fields(4).Value
+                prof_details.Name = rs.Fields(1).value
+                prof_details.ID = rs.Fields(0).value
+                prof_details.Description = rs.Fields(2).value
+                prof_details.Owner = rs.Fields(3).value
+                prof_details.Created = rs.Fields(4).value
                 
                 dictProfiles.Add i, prof_details
                 cmb.AddItem prof_details.Name 'rs.Fields(1).Value
@@ -158,6 +158,7 @@ Public Sub LoadDictionaryValues()
     Dim clRs As New clsSQLRecordset
     Dim rs As ADODB.Recordset
     Dim DictTitlesRange As Range, c As Range
+    Dim targetRangeStart As Range, targetRangeEnd As Range
     Dim updatedFields As New StringBuilder
     Dim notUpdatedFields As New StringBuilder
     
@@ -183,10 +184,10 @@ Public Sub LoadDictionaryValues()
             For Each c In DictTitlesRange.Cells
                 'Debug.Print c.Address, c.Value
                 
-                If Len(Trim(c.Value)) > 0 Then
+                If Len(Trim(c.value)) > 0 Then
                     'if the field name is not empty, try to get data for it from the DB
                     
-                    Set rs = clRs.GetRecordset(Replace(GetConfigValue("Dict_DB_Select_Statment"), "{{search_field_name}}", Trim(c.Value)))
+                    Set rs = clRs.GetRecordset(Replace(GetConfigValue("Dict_DB_Select_Statment"), "{{search_field_name}}", Trim(c.value)))
                     
                     If rs Is Nothing Then Exit Sub 'exit sub if recordset is failed to instantiate
                     
@@ -196,16 +197,22 @@ Public Sub LoadDictionaryValues()
                         'clean the area of insertion first; it will select all fields actually used in the first column (corresponding to the current field header) and offset to 2 columns to the right
 '                        Debug.Print Range(c.Offset(.Rows.Count - c.Offset(2).Row).End(xlUp).Address).Offset(0, 2).Address
 '                        Debug.Print Range(c.Offset(2, 0).Address, Range(c.Offset(.Rows.Count - c.Offset(2).Row).End(xlUp).Address).Offset(0, 2).Address).Address
-                        .Range(c.Offset(2, 0).Address, .Range(c.Offset(.Rows.Count - c.Offset(2).Row).End(xlUp).Address).Offset(0, 2).Address).Clear
+                        Set targetRangeStart = c.Offset(2, 0)
+                        Set targetRangeEnd = .Range(c.Offset(.Rows.Count - c.Offset(2).Row).End(xlUp).Address).Offset(0, 2)
+                        If targetRangeEnd.Row < targetRangeStart.Row Then
+                            Set targetRangeEnd = targetRangeStart
+                        End If
+                        .Range(targetRangeStart.Address, targetRangeEnd.Address).Clear
+                        '.Range(c.Offset(2, 0).Address, .Range(c.Offset(.Rows.Count - c.Offset(2).Row).End(xlUp).Address).Offset(0, 2).Address).Clear
                         
                         'copy fresh set of dictionary data
                         c.Offset(2, 0).CopyFromRecordset rs
                         
                         'collect name of the successfully updated field
-                        updatedFields.Append c.Value
+                        updatedFields.Append c.value
                     Else 'go here if DB does not return any data for the given field
                         'collect name of the not updated field
-                        notUpdatedFields.Append c.Value
+                        notUpdatedFields.Append c.value
                     End If
                 End If
             Next
@@ -443,7 +450,7 @@ Sub LoadCaptionsForRecordset(firstCellOfHeaderRow As Range, rsData As ADODB.Reco
         
         'update headers on the page
         For i = 0 To rsData.Fields.Count - 1
-            firstCellOfHeaderRow.Offset(0, i).Value = Replace(rsData.Fields(i).Name, "_", " ")
+            firstCellOfHeaderRow.Offset(0, i).value = Replace(rsData.Fields(i).Name, "_", " ")
         Next
     End With
 End Sub
@@ -461,7 +468,7 @@ Function ValidatePageHeaders(firstCellOfHeaderRow As Range, rsData As ADODB.Reco
         
         'compare header captions between the page and the recordset
         For i = 0 To rsData.Fields.Count - 1
-            If firstCellOfHeaderRow.Offset(0, i).Value <> Replace(rs.Data.Fields(i).Name, "_", " ") Then
+            If firstCellOfHeaderRow.Offset(0, i).value <> Replace(rs.Data.Fields(i).Name, "_", " ") Then
                 ValidatePageHeaders = False
                 Exit Function
             End If
