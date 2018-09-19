@@ -2,7 +2,7 @@ Attribute VB_Name = "mdlGeneric"
 Option Explicit
 
 Public Const cHelpTitle = "Sample Entry Validation Tool"
-Public Const cHelpVersion = "1.010"
+Public Const cHelpVersion = "1.011"
 Public Const cHelpDescription = "Questions and technical support: email to stasrirak.ms@gmail.com"
 
 Public Const cRawDataWorksheetName = "RawData"
@@ -272,7 +272,7 @@ Private Sub RemoveFormattingAndContents(Optional sWorksheetName As String = "Raw
             For Each rCell In .Range("$1:$1")
                 'Debug.Print rCell.Address, rCell.Value
                 
-                If Len(Trim(rCell.Value)) = 0 Then
+                If Len(Trim(rCell.value)) = 0 Then
                     .Range("$" & rCell.Column & ":$" & .Cells.Columns.Count).Delete
                     Exit For
                 End If
@@ -500,7 +500,7 @@ Public Sub SyncFieldsAccrossSheets()
         
         'identify range of actually used cells on the given spreadsheet
         Set rRng = .Range(cFieldSettings_FirstFieldCell & ":" & Cells(iRows, 1).Address)
-        tempFieldsListRange = rRng.Value
+        tempFieldsListRange = rRng.value
         
 '        curVoidAutomatedValidation = bVoidAutomatedValidation 'save current status of bVoidAutomatedValidation into a temp variable
 '        bVoidAutomatedValidation = True 'formating removal will trigger automated validation, to prevent that this flag is set temporarily true
@@ -1097,7 +1097,7 @@ Public Sub HighlightDuplicates(Optional rTargetCells As Range)
             
         'loop through each cell of the identified column's range and utilize standard CountIf function to identify duplicates
         For Each rCell In Target
-            If WorksheetFunction.CountIf(Target, rCell.Value) > 1 Then
+            If WorksheetFunction.CountIf(Target, rCell.value) > 1 Then
                 'Debug.Print rCell.Value, "Duplicate"
                 
                 'highlight found duplicates
@@ -1135,14 +1135,14 @@ Public Function GetConfigValue(Key As String) As Variant
         
         'if fnr is not Nothing, retrun the associate value
         If Not fnr Is Nothing Then
-            GetConfigValue = fnr.Offset(0, 1).Value 'it will return value of the cell located immediately on a right from the address located in fnr
+            GetConfigValue = fnr.Offset(0, 1).value 'it will return value of the cell located immediately on a right from the address located in fnr
         Else
             GetConfigValue = Null
         End If
     End With
 End Function
 
-Public Function SetConfigValue(Key As String, Value As String) As Integer
+Public Function SetConfigValue(Key As String, value As String) As Integer
     With Worksheets(cConfigWorksheetName)
         Dim fnr As Range
         Dim iRows As Integer
@@ -1154,14 +1154,14 @@ Public Function SetConfigValue(Key As String, Value As String) As Integer
         
         If Not fnr Is Nothing Then
             'if fnr is not Nothing, set the given Value for the requested Key
-            fnr.Offset(0, 1).Value = Value 'it set the value of the found config cell to the passed Value
+            fnr.Offset(0, 1).value = value 'it set the value of the found config cell to the passed Value
             
             SetConfigValue = 1
         Else
             'if the requested Key was not found, add a new entry for the key
             Set fnr = .Range(Cells(iRows, 1).Offset(1, 0).Address)
-            fnr.Value = Key
-            fnr.Offset(0, 1).Value = Value
+            fnr.value = Key
+            fnr.Offset(0, 1).value = value
             
             SetConfigValue = 2
         End If
