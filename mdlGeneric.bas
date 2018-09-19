@@ -2,11 +2,7 @@ Attribute VB_Name = "mdlGeneric"
 Option Explicit
 
 Public Const cHelpTitle = "Sample Entry Validation Tool"
-<<<<<<< HEAD
 Public Const cHelpVersion = "1.011"
-=======
-Public Const cHelpVersion = "1.010"
->>>>>>> master
 Public Const cHelpDescription = "Questions and technical support: email to stasrirak.ms@gmail.com"
 
 Public Const cRawDataWorksheetName = "RawData"

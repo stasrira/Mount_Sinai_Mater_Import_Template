@@ -22,8 +22,8 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     Application.EnableEvents = False
     For Each rCell In Target.Cells
         'If IsNumeric(rCell.Value) Then
-        If IsNumeric(rCell.Value) And Not IsEmpty(rCell.Value) Then 'IsEmpty is used to avoid adding "'" to an empty cells that are considered Numeric by VBA
-            rCell.Value = "'" & rCell.Value
+        If IsNumeric(rCell.value) And Not IsEmpty(rCell.value) Then 'IsEmpty is used to avoid adding "'" to an empty cells that are considered Numeric by VBA
+            rCell.value = "'" & rCell.value
         End If
     Next
     
@@ -146,7 +146,4 @@ Err1:
 End Sub
 
 
-<<<<<<< HEAD
 
-=======
->>>>>>> master
