@@ -12,6 +12,12 @@ Private Sub Workbook_Open()
     'set comparision mode of the global dictionary - dictValidationResults
     dictValidationResults.CompareMode = TextCompare
     
+    'set automatic calculation for the whole workbook - this will make sure that Automatic calculation is set as default
+    Application.Calculation = xlCalculationAutomatic
+    
+    'set dropdown functionality based on the config settings
+    bVoidDropDownFunctionality = CBool(GetConfigValue("dflt_bVoidDropDownFunctionality")) 'True
+    
     'register local events
     RegisterCustomEvents
     
