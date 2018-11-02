@@ -43,7 +43,7 @@ Public Function InitializeValues(Target As Range) As Boolean
     'Find name of the field being updated
     'OLD --> FieldName = Application.Worksheets("Validated").Range(Left(Target.Address, InStrRev(Target.Address, "$")) + "1").value
     'FieldName = Application.Worksheets(cRawDataWorksheetName).Range(CellProperties.CellCollumn + "1").value
-    FieldValue = Target.Value
+    FieldValue = Target.value
     'FieldAddress = Target.Address
     
     Set ValidationErrors = New clsFieldValidationErrors
@@ -189,7 +189,7 @@ Public Sub UpdateValidatedCell(Optional CleanOutValue As Boolean = False)
         ApplyConditionalFormating False
     End If
     
-    Application.Worksheets(cValidatedWorksheetName).Range(cellProperties.CellAddress).Value = strValue
+    Application.Worksheets(cValidatedWorksheetName).Range(cellProperties.CellAddress).value = strValue
 End Sub
 
 Private Sub ApplyConditionalFormating(Optional CleanOutValue As Boolean = False)
@@ -217,6 +217,8 @@ Private Sub ProcessCalculationTrigger(fieldName As String, ByRef obValidatedResu
             ParseSourcAliquotLabel CalcOverwriteExistingVal
         Case "MT_Vessel ID"
             GetScannedPositions CalcOverwriteExistingVal
+        Case "MT_Source Specimen"
+            Set_Aliquot_Prep_State_Field_ForCodedValues CalcOverwriteExistingVal
         Case Else
             ValidationErrors.Add "Field """ & fieldName & """ marked as ""Calculation Trigger"", however no custom calculation function was allocated for it." & vbCrLf & _
                 "To resolve this error clear ""Calculation Trigger"" setting of this field or contact technical support to resolve the issue.", _
@@ -225,7 +227,27 @@ Private Sub ProcessCalculationTrigger(fieldName As String, ByRef obValidatedResu
     End Select
 End Sub
 
-Private Static Sub ParseSourcAliquotLabel(CalcOverwriteExistingVal As Boolean)
+Private Sub Set_Aliquot_Prep_State_Field_ForCodedValues(CalcOverwriteExistingVal As Boolean)
+    Dim curValue As String, curAddress As String
+    
+    If IsNumeric(Trim(FieldValue)) Then
+         On Error Resume Next
+         
+        'Update Aliquot_Prep_State fields with value from the source specimen field
+        With Worksheets(cRawDataWorksheetName)
+            curAddress = FindFieldAddress("MT_Aliquot_Preparation_State", cellProperties.cellRow)
+            If Len(Trim(curAddress)) > 0 Then
+                With .Range(curAddress)
+                    curValue = .value
+                    .value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, Trim(FieldValue))
+                End With
+            End If
+            
+        End With
+    End If
+End Sub
+
+Private Sub ParseSourcAliquotLabel(CalcOverwriteExistingVal As Boolean)
 'TODO - Parsing and field mapping is hardcoded in this function. Eventually this should be replaced with a generic approach for calculated fields.
 
 'Parsing logic is below:
@@ -263,32 +285,32 @@ Private Static Sub ParseSourcAliquotLabel(CalcOverwriteExistingVal As Boolean)
             curAddress = FindFieldAddress("MT_Sample ID", cellProperties.cellRow)
             If Len(Trim(curAddress)) > 0 Then
                 With .Range(curAddress)
-                    curValue = .Value
-                    .Value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, sSampleId)
+                    curValue = .value
+                    .value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, sSampleId)
                 End With
             End If
             
             curAddress = FindFieldAddress("MT_SubjectID", cellProperties.cellRow)
             If Len(Trim(curAddress)) > 0 Then
                 With .Range(curAddress)
-                    curValue = .Value
-                    .Value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, sSubjectId)
+                    curValue = .value
+                    .value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, sSubjectId)
                 End With
             End If
             
             curAddress = FindFieldAddress("MT_Source Specimen", cellProperties.cellRow)
             If Len(Trim(curAddress)) > 0 Then
                 With .Range(curAddress)
-                    curValue = .Value
-                    .Value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, sSourceSpecimen)
+                    curValue = .value
+                    .value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, sSourceSpecimen)
                 End With
             End If
             
             curAddress = FindFieldAddress("MT_Study Timepoint", cellProperties.cellRow)
             If Len(Trim(curAddress)) > 0 Then
                 With .Range(curAddress)
-                    curValue = .Value
-                    .Value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, sTimepoint)
+                    curValue = .value
+                    .value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, sTimepoint)
                 End With
             End If
             
@@ -313,14 +335,14 @@ Private Sub GetScannedPositions(CalcOverwriteExistingVal As Boolean)
             Set rCell = .Range("$B:$B").Find(FieldValue, , LookIn:=xlValues) 'search for a particular Vessel ID value
             
             If Not rCell Is Nothing Then 'if the Vessel ID was found, proceed here
-                scanStatus = rCell.Offset(0, 1).Value
+                scanStatus = rCell.Offset(0, 1).value
                 
                 If scanStatus = "OK" Then
                     'parse the location value into coordinates: row/column
                     Set bPos = New clsBoxPosition
-                    bPos.SplitScannedLocationToPositions (rCell.Offset(0, -1).Value)
+                    bPos.SplitScannedLocationToPositions (rCell.Offset(0, -1).value)
                     'get Box ID value reported by flatbedscanner
-                    scanBoxID = rCell.Offset(0, 2).Value
+                    scanBoxID = rCell.Offset(0, 2).value
                     
                     'On Error Resume Next
                     'Update associated fields
@@ -329,8 +351,8 @@ Private Sub GetScannedPositions(CalcOverwriteExistingVal As Boolean)
                         curAddress = FindFieldAddress("Row_p4", cellProperties.cellRow)
                         If Len(Trim(curAddress)) > 0 Then
                             With .Range(curAddress)
-                                curValue = .Value
-                                .Value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, bPos.Row_p4)
+                                curValue = .value
+                                .value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, bPos.Row_p4)
                             End With
                         End If
                     
@@ -343,8 +365,8 @@ Private Sub GetScannedPositions(CalcOverwriteExistingVal As Boolean)
                         curAddress = FindFieldAddress("Column_p5", cellProperties.cellRow)
                         If Len(Trim(curAddress)) > 0 Then
                             With .Range(curAddress)
-                                curValue = .Value
-                                .Value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, bPos.Column_p5)
+                                curValue = .value
+                                .value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, bPos.Column_p5)
                             End With
                         End If
 '                        .Range(FindFieldAddress("Column_p5", cellProperties.cellRow)).Value = _
@@ -359,8 +381,8 @@ Private Sub GetScannedPositions(CalcOverwriteExistingVal As Boolean)
                         curAddress = FindFieldAddress("MT_Box Label", cellProperties.cellRow)
                         If Len(Trim(curAddress)) > 0 Then
                             With .Range(curAddress)
-                                curValue = .Value
-                                .Value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, scanBoxID)
+                                curValue = .value
+                                .value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, scanBoxID)
                             End With
                         End If
 
