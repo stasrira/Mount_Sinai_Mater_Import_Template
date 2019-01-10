@@ -2,7 +2,7 @@ Attribute VB_Name = "mdlGeneric"
 Option Explicit
 
 Public Const cHelpTitle = "Sample Entry Validation Tool"
-Public Const cHelpVersion = "1.014"
+Public Const cHelpVersion = "1.015"
 Public Const cHelpDescription = "Questions and technical support: email to stasrirak.ms@gmail.com"
 
 Public Const cRawDataWorksheetName = "RawData"
@@ -40,6 +40,7 @@ Public Enum ValidationErrorStatus
     CombinationOfErrors = 4
     IncorrectDate = 5
     FieldCalculationError = 6
+    NotNumericValue = 7
 End Enum
 
 Public Enum ValidationOutcomeStatus
@@ -51,7 +52,7 @@ Public Enum ValidationOutcomeStatus
 End Enum
 
 Public Enum BackgroundColors
-    White = 16777215 'RGB(255, 255, 255)
+    white = 16777215 'RGB(255, 255, 255)
     Green = 13561798 'RGB(198, 239, 206)
     Orange = 8696052 'RGB(244, 176, 132)
     LightRed = 13551615 'RGB(255, 199, 206)
@@ -62,7 +63,7 @@ Public Enum BackgroundColors
 End Enum
 
 Public Enum FontColors
-    White = 16777215 'RGB(255, 255, 255)
+    white = 16777215 'RGB(255, 255, 255)
     DarkGreen = 24832 'RGB(0, 97, 0)
     DarkRed = 393372 'RGB(156, 0, 6)
     DarkYellow = 22428 'RGB(156, 87, 0)
@@ -731,6 +732,8 @@ Private Function CellValidationReport(curCell As Range) As ValidationReportMsg
         sb.Append IIf(oFieldSettings.FieldDefaultBool, oFieldSettings.FieldDefaultValue, "No Default value") & vbCrLf
         sb.Append "Date Field: "
         sb.Append IIf(oFieldSettings.FieldDateType, "Yes", "No") & vbCrLf
+        sb.Append "Numeric Only: "
+        sb.Append IIf(oFieldSettings.FieldNumericOnlyType, "Yes", "No") & vbCrLf
         sb.Append "Calculated: "
         sb.Append IIf(oFieldSettings.FieldCalculated, "Yes", "No") & vbCrLf
         sb.Append "Triggers Calculation of other fields: "

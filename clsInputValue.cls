@@ -106,6 +106,15 @@ Public Sub ValidateFieldValue(ByRef obValidatedResult As clsValidationResult) 'A
                     'todo assign error status
                     ValidationErrors.Add "Incorrect date value was provided.", "Input value validation module", IncorrectDate
                 End If
+            ElseIf oFieldSettings.FieldNumericOnlyType Then
+                If IsNumeric(FieldValue) Then
+                    iFieldValueValidated = FieldValue
+                    obValidatedResult.ValidationStatus = ValidationPassed
+                Else
+                    obValidatedResult.ValidationStatus = ValidationError
+                    'todo assign error status
+                    ValidationErrors.Add "Not numeric value was provided.", "Input value validation module", NotNumericValue
+                End If
             Else
                 'pass the value as is
                 iFieldValueValidated = FieldValue
@@ -157,7 +166,7 @@ Public Sub ValidateFieldValue(ByRef obValidatedResult As clsValidationResult) 'A
                 End Select
             Case ValidationErrorStatus.RequiredFieldEmpty
                 .CellConditionalInteriorColor = BackgroundColors.Red
-                .CellConditionalFontColor = FontColors.White
+                .CellConditionalFontColor = FontColors.white
             Case ValidationErrorStatus.UnexpectedValue, ValidationErrorStatus.IncorrectDate
                 .CellConditionalInteriorColor = BackgroundColors.Orange
                 .CellConditionalFontColor = FontColors.Black
@@ -166,7 +175,7 @@ Public Sub ValidateFieldValue(ByRef obValidatedResult As clsValidationResult) 'A
                 .CellConditionalFontColor = FontColors.DarkYellow
             Case Else
                 .CellConditionalInteriorColor = BackgroundColors.Blue
-                .CellConditionalFontColor = FontColors.Black
+                .CellConditionalFontColor = FontColors.DarkRed
         End Select
         
     End With
@@ -219,6 +228,8 @@ Private Sub ProcessCalculationTrigger(fieldName As String, ByRef obValidatedResu
             GetScannedPositions CalcOverwriteExistingVal
         Case "MT_Source Specimen"
             Set_Aliquot_Prep_State_Field_ForCodedValues CalcOverwriteExistingVal
+        Case "Sample Weight Reported", "Sample Volume Reported"
+            Set_Initial_Current_Values CalcOverwriteExistingVal
         Case Else
             ValidationErrors.Add "Field """ & fieldName & """ marked as ""Calculation Trigger"", however no custom calculation function was allocated for it." & vbCrLf & _
                 "To resolve this error clear ""Calculation Trigger"" setting of this field or contact technical support to resolve the issue.", _
@@ -245,6 +256,62 @@ Private Sub Set_Aliquot_Prep_State_Field_ForCodedValues(CalcOverwriteExistingVal
             
         End With
     End If
+End Sub
+
+Private Sub Set_Initial_Current_Values(CalcOverwriteExistingVal As Boolean)
+    Dim curValue As String, curAddress As String
+    Dim curAddrWeight As String, curAddrVolume As String
+    Dim curValueWeight As String, curValueVolume As String
+    Dim finalOutValue As String
+
+    With Worksheets(cRawDataWorksheetName)
+    
+        'get weight & volume columm's addresses
+        curAddrWeight = FindFieldAddress("Sample Weight Reported", cellProperties.cellRow)
+        curAddrVolume = FindFieldAddress("Sample Volume Reported", cellProperties.cellRow)
+        
+        'get weight value
+        If Len(Trim(curAddrWeight)) > 0 Then
+            With .Range(curAddrWeight)
+                curValueWeight = .value
+            End With
+        End If
+        
+        'get volume value
+        If Len(Trim(curAddrVolume)) > 0 Then
+            With .Range(curAddrVolume)
+                curValueVolume = .value
+            End With
+        End If
+        
+        'Weight and Volume value should be mutually exclusive.
+        'OK case - If only one if filled with data, pass that data to the target fields.
+        'Error case - If these 2 fields are filled with some values or both are blank, report an error - fill with "Can't Resolve" and highlight as Unexpected value.
+        
+        finalOutValue = "Can't Resolve" 'default value
+        finalOutValue = IIf((Len(Trim(curValueWeight)) > 0 And Len(Trim(curValueVolume)) = 0), curValueWeight, finalOutValue) 'assign Weight value
+        finalOutValue = IIf((Len(Trim(curValueWeight)) = 0 And Len(Trim(curValueVolume)) > 0), curValueVolume, finalOutValue) 'assign Volume value
+           
+        'update "Initial Amount"
+        curAddress = FindFieldAddress("Initial Amount", cellProperties.cellRow)
+        If Len(Trim(curAddress)) > 0 Then
+            With .Range(curAddress)
+                curValue = .value
+                .value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, Trim(finalOutValue))
+            End With
+        End If
+        
+        'update "current value"
+        curAddress = FindFieldAddress("Current Amount", cellProperties.cellRow)
+        If Len(Trim(curAddress)) > 0 Then
+            With .Range(curAddress)
+                curValue = .value
+                .value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, Trim(finalOutValue))
+            End With
+        End If
+        
+        
+    End With
 End Sub
 
 Private Sub ParseSourcAliquotLabel(CalcOverwriteExistingVal As Boolean)

@@ -23,6 +23,7 @@ Public FieldCalcOverwriteExistingVal As Boolean
 Public FieldDateType As Boolean
 Public FieldExcludeFromExport As Boolean 'if set to true, the column corresponding to this field won't be included into the export file
 'Public FieldColumnAddressOnRawDataSheet As String 'will hold the address of the column on the RawData sheet corresponding to the current field
+Public FieldNumericOnlyType As Boolean
 
 Private FieldSettingsFirstCell As String 'sets to "A2" during initialization of the class
 Private fieldRowNum As String 'Will hold address of the row containing the field on the FieldSettings sheet. This variable will be used from different Subs/Functions
@@ -40,6 +41,7 @@ Const cAddrCalcOverwriteExistingVal = "$H"
 Const cAddrCalculated = "$I"
 Const cAddrDateField = "$J"
 Const cAddrExcludeFromExport = "$K"
+Const cAddrNumericOnly = "$L"
 
 
 Public Sub InitializeValues(cellProperties As clsCellProperties)  '(vFieldName As String)
@@ -71,24 +73,25 @@ Public Sub InitializeValues(cellProperties As clsCellProperties)  '(vFieldName A
             
             'read Default as boolean field value
             'FieldRequiredBool = .Range(cAddrRequired + fieldRowNum).value
-            FieldDefaultBool = Len(.Range(cAddrDefault + fieldRowNum).Value) > 0
+            FieldDefaultBool = Len(.Range(cAddrDefault + fieldRowNum).value) > 0
             
             'read Default field value
             'Default value can be hardcoded for regular fields or retrieved through hardcoded VLookup function for dropdowns on FieldSettings sheet (the current version)
-            FieldDefaultValue = .Range(cAddrDefault + fieldRowNum).Value
+            FieldDefaultValue = .Range(cAddrDefault + fieldRowNum).value
 'TODO - retrieve default for dropdown fields from the range programmatically - it will be a more generic way of getting it
             
             'read DropDown field value
-            FieldDropDownBool = .Range(cAddrDropDown + fieldRowNum).Value
+            FieldDropDownBool = .Range(cAddrDropDown + fieldRowNum).value
             'read error message value for no match of the dropdown field
-            FieldErrorMessage = .Range(cAddrDropdownErrorMessage + fieldRowNum).Value
+            FieldErrorMessage = .Range(cAddrDropdownErrorMessage + fieldRowNum).value
             'read Dropdown lookup range (on the Dictionary sheet)
-            FieldDropDownValueLookupRange = .Range(cAddrDropDownValueLookupRange + fieldRowNum).Value
+            FieldDropDownValueLookupRange = .Range(cAddrDropDownValueLookupRange + fieldRowNum).value
             'read Date field value
-            FieldDateType = .Range(cAddrDateField + fieldRowNum).Value
+            FieldDateType = .Range(cAddrDateField + fieldRowNum).value
             'read exclude from export value
-            FieldExcludeFromExport = .Range(cAddrExcludeFromExport + fieldRowNum).Value
-            
+            FieldExcludeFromExport = .Range(cAddrExcludeFromExport + fieldRowNum).value
+            'read Numeric Only value
+            FieldNumericOnlyType = .Range(cAddrNumericOnly + fieldRowNum).value
             
             UpdateVolatileSettings cellProperties
             
@@ -118,13 +121,13 @@ Public Sub UpdateVolatileSettings(cellProperties As clsCellProperties) ', Option
     If DataAvailable Then 'run the below code only if FieldSettings instance has data available
         With Worksheets(cSettingsWorksheetName)
             'read Required field value
-            FieldRequiredBool = ValidateBoolValue(.Range(cAddrRequired + fieldRowNum).Value, cellProperties)
+            FieldRequiredBool = ValidateBoolValue(.Range(cAddrRequired + fieldRowNum).value, cellProperties)
             'read Calculated field value
-            FieldCalculated = ValidateBoolValue(.Range(cAddrCalculated + fieldRowNum).Value, cellProperties)
+            FieldCalculated = ValidateBoolValue(.Range(cAddrCalculated + fieldRowNum).value, cellProperties)
             'read Calculation Trigger field value
-            FieldCalcTrigger = ValidateBoolValue(.Range(cAddrCalcTrigger + fieldRowNum).Value, cellProperties)
+            FieldCalcTrigger = ValidateBoolValue(.Range(cAddrCalcTrigger + fieldRowNum).value, cellProperties)
             'read Calculation Overwrites Existing Values field value
-            FieldCalcOverwriteExistingVal = ValidateBoolValue(.Range(cAddrCalcOverwriteExistingVal + fieldRowNum).Value, cellProperties)
+            FieldCalcOverwriteExistingVal = ValidateBoolValue(.Range(cAddrCalcOverwriteExistingVal + fieldRowNum).value, cellProperties)
         End With
     End If
 End Sub
@@ -155,7 +158,7 @@ Private Function ValidateBoolValue(vFormulaToValidate As String, cellProperties 
                  
             For Each match In matches
               'Debug.Print match.value '{MT_Project}
-              str = Replace(str, match.Value, FindFieldValue(match.Value, cellProperties))
+              str = Replace(str, match.value, FindFieldValue(match.value, cellProperties))
               'str = Replace(str, match.value, FindFieldAddress(match.value, cellProperties.cellRow))
             Next match
         End If
