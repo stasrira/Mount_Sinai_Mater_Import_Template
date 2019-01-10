@@ -40,6 +40,7 @@ Public Enum ValidationErrorStatus
     CombinationOfErrors = 4
     IncorrectDate = 5
     FieldCalculationError = 6
+    NotNumericValue = 7
 End Enum
 
 Public Enum ValidationOutcomeStatus
