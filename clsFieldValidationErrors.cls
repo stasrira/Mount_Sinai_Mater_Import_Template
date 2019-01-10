@@ -70,9 +70,9 @@ Public Function toString(Optional bShowCellAddress As Boolean = False) As String
         If countMessages > 0 Then
             sb.Append vbCrLf '".................." &
         End If
-        sb.Append "Module: "
+        sb.Append "MODULE: "
         sb.Append iErr.InProcess & vbCrLf
-        sb.Append "Error: "
+        sb.Append "ERROR: "
         sb.Append iErr.ErrorMessage & vbCrLf
         countMessages = countMessages + 1
     Next
