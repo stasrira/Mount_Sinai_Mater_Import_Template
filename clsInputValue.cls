@@ -464,32 +464,34 @@ Private Sub GetScannedPositions(CalcOverwriteExistingVal As Boolean)
     End With
 End Sub
 
-'This function will return the location of the value of the requested field. It will use the cellProperties object to identify the correct row to be used
-Private Function FindFieldAddress(fieldName As String, cellRow As String, Optional sWorksheetName As String = "RawData") As String
-    'fieldName example: {MT_Project}
-    
-    fieldName = Replace(Replace(fieldName, "{", ""), "}", "") 'remove figure brackets from the name
-    
-    'This will find address of the cell to be evaluated
-    With Worksheets(sWorksheetName)
-        Dim fnr As Range, fcol As String
-        
-        'Find the supplied column name on the Validated sheet
-        '   Used Range method and Cells object will retrun the cell of the actually used last column on the sheet
-        Set fnr = .Range("A1:" & Cells(1, .UsedRange.Columns.Count).Address).Find(fieldName, LookIn:=xlValues)
-        If Not fnr Is Nothing Then
-            'find the column associated with the given field name
-            'fcol = Replace(Left(fnr.Address, InStrRev(fnr.Address, "$")), "$", "")
-            'identify an address of the cell that should be used for evaluation
-            'FindFieldAddress = fcol & cellRow 'cValidatedWorksheetName & "!" &
-            
-            FindFieldAddress = Cells(cellRow, fnr.Column).Address
-        Else
-            FindFieldAddress = ""
-        End If
-    End With
-    
-End Function
+'==========This function was moved to mdlGeneric module - START ======================
+''This function will return the location of the value of the requested field. It will use the cellProperties object to identify the correct row to be used
+'Private Function FindFieldAddress(fieldName As String, cellRow As String, Optional sWorksheetName As String = "RawData") As String
+'    'fieldName example: {MT_Project}
+'
+'    fieldName = Replace(Replace(fieldName, "{", ""), "}", "") 'remove figure brackets from the name
+'
+'    'This will find address of the cell to be evaluated
+'    With Worksheets(sWorksheetName)
+'        Dim fnr As Range, fcol As String
+'
+'        'Find the supplied column name on the Validated sheet
+'        '   Used Range method and Cells object will retrun the cell of the actually used last column on the sheet
+'        Set fnr = .Range("A1:" & Cells(1, .UsedRange.Columns.Count).Address).Find(fieldName, LookIn:=xlValues)
+'        If Not fnr Is Nothing Then
+'            'find the column associated with the given field name
+'            'fcol = Replace(Left(fnr.Address, InStrRev(fnr.Address, "$")), "$", "")
+'            'identify an address of the cell that should be used for evaluation
+'            'FindFieldAddress = fcol & cellRow 'cValidatedWorksheetName & "!" &
+'
+'            FindFieldAddress = Cells(cellRow, fnr.Column).Address
+'        Else
+'            FindFieldAddress = ""
+'        End If
+'    End With
+'
+'End Function
+'==========This function was moved to mdlGeneric module - END ======================
 
 'Public Sub CleanObjectReferences()
 '    'clean global object references

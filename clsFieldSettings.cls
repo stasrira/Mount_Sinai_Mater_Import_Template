@@ -24,6 +24,7 @@ Public FieldDateType As Boolean
 Public FieldExcludeFromExport As Boolean 'if set to true, the column corresponding to this field won't be included into the export file
 'Public FieldColumnAddressOnRawDataSheet As String 'will hold the address of the column on the RawData sheet corresponding to the current field
 Public FieldNumericOnlyType As Boolean
+Public FieldMiscSettings As String
 
 Private FieldSettingsFirstCell As String 'sets to "A2" during initialization of the class
 Private fieldRowNum As String 'Will hold address of the row containing the field on the FieldSettings sheet. This variable will be used from different Subs/Functions
@@ -42,6 +43,7 @@ Const cAddrCalculated = "$I"
 Const cAddrDateField = "$J"
 Const cAddrExcludeFromExport = "$K"
 Const cAddrNumericOnly = "$L"
+Const cAddrMiscSettings = "$M"
 
 
 Public Sub InitializeValues(cellProperties As clsCellProperties)  '(vFieldName As String)
@@ -92,6 +94,8 @@ Public Sub InitializeValues(cellProperties As clsCellProperties)  '(vFieldName A
             FieldExcludeFromExport = .Range(cAddrExcludeFromExport + fieldRowNum).value
             'read Numeric Only value
             FieldNumericOnlyType = .Range(cAddrNumericOnly + fieldRowNum).value
+            'read Misc_Settings value
+            FieldMiscSettings = .Range(cAddrMiscSettings + fieldRowNum).value
             
             UpdateVolatileSettings cellProperties
             
