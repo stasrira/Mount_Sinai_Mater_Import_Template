@@ -302,6 +302,7 @@ Public Sub ExportValidateSheet()
     Dim fileName As String, strResp As String
     Dim dirExists As Boolean, OFSO As FileSystemObject, fileFormat As Integer
     Dim fDialog As FileDialog, result As Integer, iTempCount As Integer
+    Dim bManifests As Boolean, iResponse As Integer
     
     
     Application.ScreenUpdating = False
@@ -391,7 +392,21 @@ ShowDialog:
                         ThisWorkbook.Sheets(tempSheetName).Delete 'delete temporary sheet
                         
                         'report successful export
-                        MsgBox "Export of Validated sheet was successfully completed and the following file was created" & vbCrLf & fileName, vbOKOnly + vbInformation, "Export Validated Sheet"
+                        MsgBox "Export of Validated sheet was successfully completed and the following file was created" & vbCrLf & fileName, _
+                                vbOKOnly + vbInformation, "Export Validated Sheet"
+                        
+                        'prompt users to submit Manifest IDs
+                        bManifests = CBool(GetConfigValue("Manifest_Prompt_OnExport"))
+                        If bManifests Then
+                            iResponse = MsgBox("Do you also want to submit Manifest IDs exported in this file to the database?" & _
+                                        vbCrLf & vbCrLf & "If you want to proceed, click 'OK'. If not, click 'Cancel'.", _
+                                        vbOKCancel + vbInformation, "Submitting Manfiest IDs")
+                                        
+                            If iResponse = vbOK Then
+                                SubmitManifests True
+                            End If
+                        End If
+                        
                     Else
                         'report bad path provided
                         MsgBox "Error writing to the provided path. It might not exist or not accessable. Verify the pass and try again", vbCritical, "Error saving export file"
@@ -406,7 +421,6 @@ ShowDialog:
 
     Application.DisplayAlerts = True
     Application.ScreenUpdating = True
-    
 End Sub
 
 Public Function GetFieldSettingsInstance(cellProperties As clsCellProperties, Optional updateVolatileSetting As Boolean = True, Optional fieldName As String = "")
@@ -1028,7 +1042,28 @@ Public Sub LoadCustomMenus()
             .OnAction = "FBS_Scan"
             .FaceId = 485 '18
         End With
-           
+         
+        'create sub menu "DB Link"
+        Set cmbDBLink = .Controls.Add(Type:=msoControlPopup, Temporary:=True)
+        With cmbDBLink
+            .Caption = "Database Link"
+            With .Controls.Add(Type:=msoControlButton)
+                .Caption = "Submit Manifest IDs"
+                .OnAction = "SubmitManifests"
+                .FaceId = 3000
+            End With
+            With .Controls.Add(Type:=msoControlButton)
+                .Caption = "Sync Dictionary values with Database"
+                .OnAction = "LoadDictionaryValues"
+                .FaceId = 3000
+            End With
+            With .Controls.Add(Type:=msoControlButton)
+                .Caption = "Load Field Setting Profile"
+                .OnAction = "LoadFieldSettings"
+                .FaceId = 3000
+            End With
+        End With
+        
         'create sub menu "Settings"
         Set cmbSettings = .Controls.Add(Type:=msoControlPopup, Temporary:=True)
         With cmbSettings
@@ -1062,21 +1097,7 @@ Public Sub LoadCustomMenus()
             End With
         End With
         
-        'create sub menu "DB Link"
-        Set cmbDBLink = .Controls.Add(Type:=msoControlPopup, Temporary:=True)
-        With cmbDBLink
-            .Caption = "Database Link"
-            With .Controls.Add(Type:=msoControlButton)
-                .Caption = "Sync Dictionary values with Database"
-                .OnAction = "LoadDictionaryValues"
-                .FaceId = 3000
-            End With
-            With .Controls.Add(Type:=msoControlButton)
-                .Caption = "Load Field Setting Profile"
-                .OnAction = "LoadFieldSettings"
-                .FaceId = 3000
-            End With
-        End With
+        
     
     End With
 End Sub
@@ -1173,4 +1194,106 @@ Public Function SetConfigValue(Key As String, value As String) As Integer
     Exit Function
     
 'TODO - add error handler
+End Function
+
+'This function will return the location of the value of the requested field. It will use the cellProperties object to identify the correct row to be used
+Public Function FindFieldAddress(fieldName As String, cellRow As String, Optional sWorksheetName As String = "RawData") As String
+    'fieldName example: {MT_Project}
+    
+    fieldName = Replace(Replace(fieldName, "{", ""), "}", "") 'remove figure brackets from the name
+    
+    'This will find address of the cell to be evaluated
+    With Worksheets(sWorksheetName)
+        Dim fnr As Range, fcol As String
+        
+        'Find the supplied column name on the Validated sheet
+        '   Used Range method and Cells object will retrun the cell of the actually used last column on the sheet
+        Set fnr = .Range("A1:" & Cells(1, .UsedRange.Columns.Count).Address).Find(fieldName, LookIn:=xlValues)
+        If Not fnr Is Nothing Then
+            'find the column associated with the given field name
+            'fcol = Replace(Left(fnr.Address, InStrRev(fnr.Address, "$")), "$", "")
+            'identify an address of the cell that should be used for evaluation
+            'FindFieldAddress = fcol & cellRow 'cValidatedWorksheetName & "!" &
+            
+            FindFieldAddress = Cells(cellRow, fnr.Column).Address
+        Else
+            FindFieldAddress = ""
+        End If
+    End With
+    
+End Function
+
+Function GetUniqueValues(ws As Worksheet, col As Long) As Variant
+    Dim data(), r As Long
+    Dim dr As New Dictionary
+    
+    data = ws.UsedRange.Columns(col).Value2  'ws.UsedRange.value
+    
+    If UBound(data) > 1 Then 'make sure that the array has more then 1 member (the first member is the column name)
+        For r = 2 To UBound(data)
+            If Not dr.Exists(data(r, 1)) And Not data(r, 1) = Empty Then
+                dr.Add data(r, 1), Empty
+            End If
+        Next r
+    End If
+    
+    GetUniqueValues = dr.Keys()
+End Function
+
+'this function will retrieve a disctinct list values presented in the field (default: Manifest IDs) located on the given sheet (default: Validated sheet)
+Public Function Get_DisticntValuesFromField(Optional fieldName As String = "MT_ManifestID", Optional worksheetName As String = cValidatedWorksheetName) As String
+    Dim arr As Variant
+    Dim val As String, out As String, r As Long
+    Dim field_addr As String
+    
+    out = "" 'default output
+    
+    field_addr = FindFieldAddress(fieldName, 1)
+    
+    If Len(field_addr) > 0 Then 'if the given field was found, attempt to get values from it
+        'the following is passing the worksheet and the column number (of ManifestID column) to be used for collecting unique values
+        arr = GetUniqueValues(Worksheets(worksheetName), Range(field_addr).Column)
+        
+        For r = 0 To UBound(arr)
+            out = out + arr(r)
+            If r <> UBound(arr) Then
+                out = out + ","
+            End If
+        Next
+    
+    End If
+    
+    Get_DisticntValuesFromField = out
+End Function
+
+Public Function Get_MiscSettingValue(field_name As String, setting_name As String, _
+                                    Optional setting_delim As String = ";", _
+                                    Optional value_delim As String = ":") As String
+    
+    Dim oFieldSettings As clsFieldSettings
+    Dim misc As String
+    Dim arList() As String, arSetting() As String
+    Dim i As Integer
+    Dim outVal As String
+    
+    outVal = "" 'default out value
+    
+    'get misc settings for the ManifestID field
+    Set oFieldSettings = GetFieldSettingsInstance(Nothing, False, field_name) '"MT_ManifestID"
+    If oFieldSettings.DataAvailable Then
+        misc = oFieldSettings.FieldMiscSettings
+    End If
+    
+    arList = Split(misc, setting_delim)
+    For i = 0 To UBound(arList)
+        arSetting = Split(arList(i), value_delim)
+        If UBound(arSetting) > 0 Then 'check that setting info is not empty
+            If Trim(arSetting(0)) = Trim(setting_name) Then
+                outVal = arSetting(1)
+            End If
+        End If
+    Next
+    
+    Get_MiscSettingValue = outVal
+    
 End Function
