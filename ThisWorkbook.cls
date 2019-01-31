@@ -16,7 +16,9 @@ Private Sub Workbook_Open()
     Application.Calculation = xlCalculationAutomatic
     
     'set dropdown functionality based on the config settings
-    bVoidDropDownFunctionality = CBool(GetConfigValue("dflt_bVoidDropDownFunctionality")) 'True
+    bVoidDropDownFunctionality = CBool(GetConfigValue("Dflt_bVoidDropDownFunctionality")) 'True
+    'set dropdown functionality based on the config settings
+    bVoidAutomatedValidation = CBool(GetConfigValue("Dflt_bVoidAutomatedValidation")) 'True
     
     'register local events
     RegisterCustomEvents
