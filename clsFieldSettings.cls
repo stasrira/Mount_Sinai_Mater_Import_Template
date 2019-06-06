@@ -250,8 +250,8 @@ Private Function EvalCellValueWithRef(cell As Range, cellProperties As clsCellPr
               str = Replace(str, match.value, FindFieldValue(match.value, cellProperties))
               'str = Replace(str, match.value, FindFieldAddress(match.value, cellProperties.cellRow))
             Next match
-        Else
-            str = """" + str + """"
+'        Else
+'            str = CStr(str) '"""" + str + """"
         End If
         
         'Evaluate value of the formula
@@ -259,7 +259,7 @@ Private Function EvalCellValueWithRef(cell As Range, cellProperties As clsCellPr
             If Not IsError(.Evaluate(str)) Then
                 EvalCellValueWithRef = .Evaluate(str)
             Else
-                EvalCellValueWithRef = ""
+                EvalCellValueWithRef = str
             End If
             
         End With
@@ -278,7 +278,8 @@ Private Function FindFieldValue(fieldName As String, cellProperties As clsCellPr
     fieldName = Replace(Replace(fieldName, "{", ""), "}", "") 'remove figure brackets from the name
     
     With Worksheets(cValidatedWorksheetName)
-        FindFieldValue = """" & Application.WorksheetFunction.HLookup(fieldName, .Range("A1:Z" & cellProperties.cellRow), cellProperties.cellRow, False) & """"
+        'FindFieldValue = """" & Application.WorksheetFunction.HLookup(fieldName, .Range("A1:Z" & cellProperties.cellRow), cellProperties.cellRow, False) & """"
+        FindFieldValue = CStr(Application.WorksheetFunction.HLookup(fieldName, .Range("A1:Z" & cellProperties.cellRow), cellProperties.cellRow, False))
     End With
 
 End Function
