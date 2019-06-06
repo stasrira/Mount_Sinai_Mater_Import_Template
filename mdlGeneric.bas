@@ -2,7 +2,7 @@ Attribute VB_Name = "mdlGeneric"
 Option Explicit
 
 Public Const cHelpTitle = "Sample Entry Validation Tool"
-Public Const cHelpVersion = "1.015"
+Public Const cHelpVersion = "1.017"
 Public Const cHelpDescription = "Questions and technical support: email to stasrirak.ms@gmail.com"
 
 Public Const cRawDataWorksheetName = "RawData"
@@ -712,6 +712,8 @@ Private Function CellValidationReport(curCell As Range) As ValidationReportMsg
             Exit Function
         End If
         
+        'this is required to get proper values for  volatile values of FieldSetting properties (values that depends on values of other fields)
+        oFieldSettings.UpdateVolatileSettings oValidationResults.ValidatedCellProperties
         
         'Proceed here if all needed information for the cell is present
         Dim sb As New StringBuilder

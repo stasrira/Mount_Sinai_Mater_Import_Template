@@ -73,29 +73,28 @@ Public Sub InitializeValues(cellProperties As clsCellProperties)  '(vFieldName A
             
             'Populate values for all variables
             
-            'read Default as boolean field value
-            'FieldRequiredBool = .Range(cAddrRequired + fieldRowNum).value
-            FieldDefaultBool = Len(.Range(cAddrDefault + fieldRowNum).value) > 0
-            
-            'read Default field value
-            'Default value can be hardcoded for regular fields or retrieved through hardcoded VLookup function for dropdowns on FieldSettings sheet (the current version)
-            FieldDefaultValue = .Range(cAddrDefault + fieldRowNum).value
-'TODO - retrieve default for dropdown fields from the range programmatically - it will be a more generic way of getting it
+'            'read Default field value
+'            'Default value can be hardcoded for regular fields or retrieved through hardcoded VLookup function for dropdowns on FieldSettings sheet (the current version)
+'            FieldDefaultValue = GetCellValueWithErrorCheck(.Range(cAddrDefault + fieldRowNum)) 'FieldDefaultValue = .Range(cAddrDefault + fieldRowNum).value
+''TODO - retrieve default for dropdown fields from the range programmatically - it will be a more generic way of getting it
+'
+'            'read Default as boolean field value
+'            FieldDefaultBool = Len(FieldDefaultValue) > 0 'FieldDefaultBool = Len(.Range(cAddrDefault + fieldRowNum).value) > 0
             
             'read DropDown field value
-            FieldDropDownBool = .Range(cAddrDropDown + fieldRowNum).value
+            FieldDropDownBool = GetCellValueWithErrorCheck(.Range(cAddrDropDown + fieldRowNum)) '.Range(cAddrDropDown + fieldRowNum).value
             'read error message value for no match of the dropdown field
-            FieldErrorMessage = .Range(cAddrDropdownErrorMessage + fieldRowNum).value
+            FieldErrorMessage = GetCellValueWithErrorCheck(.Range(cAddrDropdownErrorMessage + fieldRowNum)) '.Range(cAddrDropdownErrorMessage + fieldRowNum).value
             'read Dropdown lookup range (on the Dictionary sheet)
-            FieldDropDownValueLookupRange = .Range(cAddrDropDownValueLookupRange + fieldRowNum).value
+            FieldDropDownValueLookupRange = GetCellValueWithErrorCheck(.Range(cAddrDropDownValueLookupRange + fieldRowNum)) '.Range(cAddrDropDownValueLookupRange + fieldRowNum).value
             'read Date field value
-            FieldDateType = .Range(cAddrDateField + fieldRowNum).value
+            FieldDateType = GetCellValueWithErrorCheck(.Range(cAddrDateField + fieldRowNum)) '.Range(cAddrDateField + fieldRowNum).value
             'read exclude from export value
-            FieldExcludeFromExport = .Range(cAddrExcludeFromExport + fieldRowNum).value
+            FieldExcludeFromExport = GetCellValueWithErrorCheck(.Range(cAddrExcludeFromExport + fieldRowNum)) '.Range(cAddrExcludeFromExport + fieldRowNum).value
             'read Numeric Only value
-            FieldNumericOnlyType = .Range(cAddrNumericOnly + fieldRowNum).value
+            FieldNumericOnlyType = GetCellValueWithErrorCheck(.Range(cAddrNumericOnly + fieldRowNum)) '.Range(cAddrNumericOnly + fieldRowNum).value
             'read Misc_Settings value
-            FieldMiscSettings = .Range(cAddrMiscSettings + fieldRowNum).value
+            FieldMiscSettings = GetCellValueWithErrorCheck(.Range(cAddrMiscSettings + fieldRowNum)) '.Range(cAddrMiscSettings + fieldRowNum).value
             
             UpdateVolatileSettings cellProperties
             
@@ -119,26 +118,58 @@ Public Sub InitializeValues(cellProperties As clsCellProperties)  '(vFieldName A
     End With
 End Sub
 
+'this function prevents cases when supplied formula for a needed values (on the Setting page) produces an error and cannot be evaluated. If that happens, value of ret_if_error variable will be returned
+Private Function GetCellValueWithErrorCheck(cell As Range, Optional ret_if_error As String = "")
+    If Not IsError(cell.value) Then
+        GetCellValueWithErrorCheck = cell.value
+    Else
+        GetCellValueWithErrorCheck = ret_if_error
+    End If
+        
+End Function
+
 'This function will calculate volatile values for properties that depends on values of other fields
 'This function is public since the FieldSettings objects stored in the dictFieldSettings dictionary will be required to re-evaluate volatile properties before each use.
 Public Sub UpdateVolatileSettings(cellProperties As clsCellProperties) ', Optional ColumnToValidate As String = cAddrRequired
+    Dim tmp As String
+    
     If DataAvailable Then 'run the below code only if FieldSettings instance has data available
         With Worksheets(cSettingsWorksheetName)
+            'read Default field value
+            'Default value can be hardcoded for regular fields or retrieved through hardcoded VLookup function for dropdowns on FieldSettings sheet (the current version)
+            FieldDefaultValue = EvalCellValueWithRef(.Range(cAddrDefault + fieldRowNum), cellProperties) 'GetCellValueWithErrorCheck(.Range(cAddrDefault + fieldRowNum)) 'FieldDefaultValue = .Range(cAddrDefault + fieldRowNum).value
+            'TODO - retrieve default for dropdown fields from the range programmatically - it will be a more generic way of getting it
+
+            'read Default as boolean field value
+            FieldDefaultBool = Len(FieldDefaultValue) > 0 'FieldDefaultBool = Len(.Range(cAddrDefault + fieldRowNum).value) > 0
+            
             'read Required field value
-            FieldRequiredBool = ValidateBoolValue(.Range(cAddrRequired + fieldRowNum).value, cellProperties)
+            'FieldRequiredBool = ValidateBoolValue(.Range(cAddrRequired + fieldRowNum).value, cellProperties)
+            tmp = EvalCellValueWithRef(.Range(cAddrRequired + fieldRowNum), cellProperties)
+            FieldRequiredBool = CBool(IIf(Len(Trim(tmp)) = 0, False, tmp))
+            tmp = ""
             'read Calculated field value
-            FieldCalculated = ValidateBoolValue(.Range(cAddrCalculated + fieldRowNum).value, cellProperties)
+            'FieldCalculated = ValidateBoolValue(.Range(cAddrCalculated + fieldRowNum).value, cellProperties)
+            tmp = EvalCellValueWithRef(.Range(cAddrCalculated + fieldRowNum), cellProperties)
+            FieldCalculated = CBool(IIf(Len(Trim(tmp)) = 0, False, tmp))
+            tmp = ""
             'read Calculation Trigger field value
-            FieldCalcTrigger = ValidateBoolValue(.Range(cAddrCalcTrigger + fieldRowNum).value, cellProperties)
+            'FieldCalcTrigger = ValidateBoolValue(.Range(cAddrCalcTrigger + fieldRowNum).value, cellProperties)
+            tmp = EvalCellValueWithRef(.Range(cAddrCalcTrigger + fieldRowNum), cellProperties)
+            FieldCalcTrigger = CBool(IIf(Len(Trim(tmp)) = 0, False, tmp))
+            tmp = ""
             'read Calculation Overwrites Existing Values field value
-            FieldCalcOverwriteExistingVal = ValidateBoolValue(.Range(cAddrCalcOverwriteExistingVal + fieldRowNum).value, cellProperties)
+            'FieldCalcOverwriteExistingVal = ValidateBoolValue(.Range(cAddrCalcOverwriteExistingVal + fieldRowNum).value, cellProperties)
+            tmp = EvalCellValueWithRef(.Range(cAddrCalcOverwriteExistingVal + fieldRowNum), cellProperties)
+            FieldCalcOverwriteExistingVal = CBool(IIf(Len(Trim(tmp)) = 0, False, tmp))
+            tmp = ""
         End With
     End If
 End Sub
 
 Private Function ValidateBoolValue(vFormulaToValidate As String, cellProperties As clsCellProperties)
 'IF ({MT_Project} = "MoTrPAC", 1, 0)
-
+    
     If Len(vFormulaToValidate) > 0 Then
         'if passed value is not empty, try to validate it
         
@@ -180,6 +211,60 @@ Private Function ValidateBoolValue(vFormulaToValidate As String, cellProperties 
         End With
     Else
         ValidateBoolValue = False
+    End If
+    
+End Function
+
+'this function identifies if other fields are referenced in cell value (of Field Settings tab) that is being evaluated. If it is, it will assume that any strings in curve parenthesis are field names
+'and will attempt to get corresponded names. For example, {Project_Id} will be assumed a Project_Id column and value of this field corresponded to the current row will be retreived.
+Private Function EvalCellValueWithRef(cell As Range, cellProperties As clsCellProperties)
+'IF ({MT_Project} = "MoTrPAC", 1, 0)
+
+    Dim vFormulaToValidate As String
+    
+    vFormulaToValidate = GetCellValueWithErrorCheck(cell)
+        
+    If Len(vFormulaToValidate) > 0 Then
+        'if passed value is not empty, try to validate it
+        
+        Dim regex As Object, str As String
+        Dim matches As Object, match As Object
+        
+        'intiate regex object and pass there the search pattern
+        Set regex = CreateObject("VBScript.RegExp")
+        With regex
+          .Pattern = "\{(.*?)\}" '\{\w*\}" 'search for patterns of filed names inside fo the curved brackets, i.e. {MT_Project}
+          .Global = True
+        End With
+             
+        str = vFormulaToValidate
+        'for test only:
+        'str = "IF ({MT_Project} = ""MoTrPAC"" and {abc}, 1, 0)"
+         
+        If regex.Test(str) Then
+            'if pattern was found, the found field names are needed to be filled with the actual field values from Validated sheet
+            Set matches = regex.Execute(str)
+                 
+            For Each match In matches
+              'Debug.Print match.value '{MT_Project}
+              str = Replace(str, match.value, FindFieldValue(match.value, cellProperties))
+              'str = Replace(str, match.value, FindFieldAddress(match.value, cellProperties.cellRow))
+            Next match
+        Else
+            str = """" + str + """"
+        End If
+        
+        'Evaluate value of the formula
+        With Worksheets(cValidatedWorksheetName)
+            If Not IsError(.Evaluate(str)) Then
+                EvalCellValueWithRef = .Evaluate(str)
+            Else
+                EvalCellValueWithRef = ""
+            End If
+            
+        End With
+    Else
+        EvalCellValueWithRef = vFormulaToValidate
     End If
     
 End Function
