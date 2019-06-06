@@ -712,6 +712,8 @@ Private Function CellValidationReport(curCell As Range) As ValidationReportMsg
             Exit Function
         End If
         
+        'this is required to get proper values for  volatile values of FieldSetting properties (values that depends on values of other fields)
+        oFieldSettings.UpdateVolatileSettings oValidationResults.ValidatedCellProperties
         
         'Proceed here if all needed information for the cell is present
         Dim sb As New StringBuilder
