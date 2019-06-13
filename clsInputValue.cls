@@ -88,7 +88,8 @@ Public Sub ValidateFieldValue(ByRef obValidatedResult As clsValidationResult) 'A
             Else
                 'pass the value as is
                 iFieldValueValidated = FieldValue
-                obValidatedResult.ValidationStatus = ValidationPassed
+                'obValidatedResult.ValidationStatus = ValidationPassed
+                obValidatedResult.ValidationStatus = IIf(obValidatedResult.ValidationStatus > 0, obValidatedResult.ValidationStatus, ValidationPassed)
             End If
         End If
         
@@ -106,7 +107,8 @@ Public Sub ValidateFieldValue(ByRef obValidatedResult As clsValidationResult) 'A
             ElseIf oFieldSettings.FieldDateType Then
                 If IsDate(FieldValue) Then
                     iFieldValueValidated = FieldValue
-                    obValidatedResult.ValidationStatus = ValidationPassed
+                    'obValidatedResult.ValidationStatus = ValidationPassed
+                    obValidatedResult.ValidationStatus = IIf(obValidatedResult.ValidationStatus > 0, obValidatedResult.ValidationStatus, ValidationPassed)
                 Else
                     obValidatedResult.ValidationStatus = ValidationError
                     'todo assign error status
@@ -115,7 +117,8 @@ Public Sub ValidateFieldValue(ByRef obValidatedResult As clsValidationResult) 'A
             ElseIf oFieldSettings.FieldNumericOnlyType Then
                 If IsNumeric(FieldValue) Then
                     iFieldValueValidated = FieldValue
-                    obValidatedResult.ValidationStatus = ValidationPassed
+                    'obValidatedResult.ValidationStatus = ValidationPassed
+                    obValidatedResult.ValidationStatus = IIf(obValidatedResult.ValidationStatus > 0, obValidatedResult.ValidationStatus, ValidationPassed)
                 Else
                     obValidatedResult.ValidationStatus = ValidationError
                     'todo assign error status
@@ -124,9 +127,10 @@ Public Sub ValidateFieldValue(ByRef obValidatedResult As clsValidationResult) 'A
             Else
                 'pass the value as is
                 iFieldValueValidated = FieldValue
-                If obValidatedResult.ValidationStatus <> DefaultAssigned Then
-                    obValidatedResult.ValidationStatus = ValidationPassed
-                End If
+                obValidatedResult.ValidationStatus = IIf(obValidatedResult.ValidationStatus > 0, obValidatedResult.ValidationStatus, ValidationPassed)
+                'If obValidatedResult.ValidationStatus <> DefaultAssigned Then
+                '    obValidatedResult.ValidationStatus = ValidationPassed
+                'End If
             End If
         End If
         
