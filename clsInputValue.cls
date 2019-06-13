@@ -72,13 +72,16 @@ Public Sub ValidateFieldValue(ByRef obValidatedResult As clsValidationResult) 'A
     
     If oFieldSettings.DataAvailable Then 'verify that Field Setting information was retrieved.
         
-        If FieldValue = "" Then 'if no value was provided
-            'validate if Default value is provided
-            If oFieldSettings.FieldDefaultBool Then
-                iFieldValueValidated = oFieldSettings.FieldDefaultValue
-                obValidatedResult.ValidationStatus = DefaultAssigned
-            ElseIf oFieldSettings.FieldRequiredBool Then
-                'Record the error
+        'validate if Default value is provided and assign it FieldValue variable
+        If FieldValue = "" And oFieldSettings.FieldDefaultBool Then
+            FieldValue = oFieldSettings.FieldDefaultValue
+            'iFieldValueValidated = oFieldSettings.FieldDefaultValue
+            obValidatedResult.ValidationStatus = DefaultAssigned
+        End If
+            
+        If FieldValue = "" Then 'if no value was provided and no default value was set
+            If oFieldSettings.FieldRequiredBool And iFieldValueValidated = "" Then
+                'if field is required and default value is empty, record a validation error
                 ValidationErrors.Add "No value was provided to the required field and no default value is available.", "Input value validation module", RequiredFieldEmpty
                 obValidatedResult.ValidationStatus = ValidationError
                 'for test only --> ValidationErrors.Add "No value was provided to the required field and no default value is available #2 - TEST.", "Input value validation module", UnexpectedValue
@@ -87,7 +90,10 @@ Public Sub ValidateFieldValue(ByRef obValidatedResult As clsValidationResult) 'A
                 iFieldValueValidated = FieldValue
                 obValidatedResult.ValidationStatus = ValidationPassed
             End If
-        Else 'if value was provided
+        End If
+        
+        If FieldValue <> "" Then
+            'if no validation error was detected
             'Check if the field type is dropdown. Verify the entered value if it is a dropdown
             If oFieldSettings.FieldDropDownBool Then
                 'Verify provided value against the expected values; it will convert a value based on the provided map;
@@ -118,7 +124,9 @@ Public Sub ValidateFieldValue(ByRef obValidatedResult As clsValidationResult) 'A
             Else
                 'pass the value as is
                 iFieldValueValidated = FieldValue
-                obValidatedResult.ValidationStatus = ValidationPassed
+                If obValidatedResult.ValidationStatus <> DefaultAssigned Then
+                    obValidatedResult.ValidationStatus = ValidationPassed
+                End If
             End If
         End If
         
@@ -225,7 +233,11 @@ Private Sub ProcessCalculationTrigger(fieldName As String, ByRef obValidatedResu
         Case "MT_Source Aliquot Label"
             ParseSourcAliquotLabel CalcOverwriteExistingVal
         Case "MT_Vessel ID"
-            GetScannedPositions CalcOverwriteExistingVal
+            If Get_MiscSettingValue(fieldName, "scanner") = "FlatbedScans" Then
+                GetScannedPositions_flatbedscans CalcOverwriteExistingVal
+            Else
+                GetScannedPositions_handledscans CalcOverwriteExistingVal
+            End If
         Case "MT_Source Specimen"
             Set_Aliquot_Prep_State_Field_ForCodedValues CalcOverwriteExistingVal
         Case "Sample Weight Reported", "Sample Volume Reported"
@@ -389,7 +401,7 @@ Private Sub ParseSourcAliquotLabel(CalcOverwriteExistingVal As Boolean)
     
 End Sub
 
-Private Sub GetScannedPositions(CalcOverwriteExistingVal As Boolean)
+Private Sub GetScannedPositions_flatbedscans(CalcOverwriteExistingVal As Boolean)
     Dim rCell As Range
     Dim scanStatus As String
     Dim bPos As clsBoxPosition
@@ -459,6 +471,49 @@ Private Sub GetScannedPositions(CalcOverwriteExistingVal As Boolean)
                     
                     Set bPos = Nothing
                 End If
+            End If
+        End If
+    End With
+End Sub
+
+Private Sub GetScannedPositions_handledscans(CalcOverwriteExistingVal As Boolean)
+    Dim rCell As Range
+    Dim curValue As String, curAddress As String
+    Dim sRow As String, sCol As String
+        
+    With Worksheets(cHandledScansWorksheetName)
+        If Len(FieldValue) > 0 Then
+            'TODO: avoid using hardcoded addresses as one below
+            Set rCell = .Range("$A:$A").Find(FieldValue, , LookIn:=xlValues) 'search for a particular Vessel ID value
+            
+            If Not rCell Is Nothing Then 'if the Vessel ID was found, proceed here
+                sRow = rCell.Offset(0, 1).value
+                sCol = rCell.Offset(0, 2).value
+                
+                'On Error Resume Next
+                'Update associated fields
+                With Worksheets(cRawDataWorksheetName)
+                    'update Row(p4) field value on the Rawdata sheet
+                    curAddress = FindFieldAddress("Row_p4", cellProperties.cellRow)
+                    If Len(Trim(curAddress)) > 0 Then
+                        With .Range(curAddress)
+                            curValue = .value
+                            .value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, sRow)
+                        End With
+                    End If
+                
+                    'update Column(p5) field value on the Rawdata sheet
+                    curAddress = FindFieldAddress("Column_p5", cellProperties.cellRow)
+                    If Len(Trim(curAddress)) > 0 Then
+                        With .Range(curAddress)
+                            curValue = .value
+                            .value = IIf(Not CalcOverwriteExistingVal And Len(Trim(curValue)) > 0, curValue, sCol)
+                        End With
+                    End If
+                    
+                End With
+                'On Error GoTo 0
+                
             End If
         End If
     End With
