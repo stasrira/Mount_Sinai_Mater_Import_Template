@@ -45,6 +45,7 @@ Public Enum ValidationErrorStatus
 End Enum
 
 Public Enum ValidationOutcomeStatus
+    Undefined = -1
     ValidationPassed = 0
     DefaultAssigned = 1
     MapConversionApplied = 2

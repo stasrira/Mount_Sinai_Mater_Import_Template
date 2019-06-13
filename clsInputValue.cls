@@ -71,7 +71,9 @@ Public Sub ValidateFieldValue(ByRef obValidatedResult As clsValidationResult) 'A
     'Dim obValidatedResult As New clsValidationResult
     
     If oFieldSettings.DataAvailable Then 'verify that Field Setting information was retrieved.
-        
+    
+        obValidatedResult.ValidationStatus = Undefined '-1
+                
         'validate if Default value is provided and assign it FieldValue variable
         If FieldValue = "" And oFieldSettings.FieldDefaultBool Then
             FieldValue = oFieldSettings.FieldDefaultValue
