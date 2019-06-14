@@ -25,6 +25,7 @@ Public FieldExcludeFromExport As Boolean 'if set to true, the column correspondi
 'Public FieldColumnAddressOnRawDataSheet As String 'will hold the address of the column on the RawData sheet corresponding to the current field
 Public FieldNumericOnlyType As Boolean
 Public FieldMiscSettings As String
+Public FieldColumnNameOnRawData As String
 
 Private FieldSettingsFirstCell As String 'sets to "A2" during initialization of the class
 Private fieldRowNum As String 'Will hold address of the row containing the field on the FieldSettings sheet. This variable will be used from different Subs/Functions
@@ -47,6 +48,9 @@ Const cAddrMiscSettings = "$M"
 
 
 Public Sub InitializeValues(cellProperties As clsCellProperties)  '(vFieldName As String)
+
+    Dim iCols As Integer
+    Dim r As Range
 
 'for test only
 'Debug.Print cellProperties.CellFieldName
@@ -95,6 +99,11 @@ Public Sub InitializeValues(cellProperties As clsCellProperties)  '(vFieldName A
             FieldNumericOnlyType = GetCellValueWithErrorCheck(.Range(cAddrNumericOnly + fieldRowNum)) '.Range(cAddrNumericOnly + fieldRowNum).value
             'read Misc_Settings value
             FieldMiscSettings = GetCellValueWithErrorCheck(.Range(cAddrMiscSettings + fieldRowNum)) '.Range(cAddrMiscSettings + fieldRowNum).value
+            'get column letter of the current field as it will be present on the Validated sheet, i.e. A, B, AA, ...
+            iCols = Worksheets(cValidatedWorksheetName).UsedRange.Columns.Count
+            Set r = Worksheets(cValidatedWorksheetName).Range("A1:" & Cells(1, iCols).Address)
+            'Address property will return value similar to $D$1; splitting it by '$' and taking element #1 to get a letter
+            FieldColumnNameOnRawData = Split(r.Find("MT_Vessel ID", LookIn:=xlValues).Address, "$")(1)
             
             UpdateVolatileSettings cellProperties
             

@@ -217,13 +217,14 @@ Private Sub ApplyConditionalFormating(Optional CleanOutValue As Boolean = False)
     End If
 End Sub
 
-Private Sub ApplyFormatingToCell(ByRef vRange As Range, bgrColor As BackgroundColors, fntColor As FontColors)
-    vRange.Interior.Color = bgrColor
-    vRange.Font.Color = fntColor
-    vRange.BorderAround xlContinuous, xlHairline, xlColorIndexAutomatic
-'    vRange.Borders.LineStyle = xlContinuous 'xlNone
-'    vRange.Borders.Weight = xlHairline
-End Sub
+'moved to mdlGeneric
+'Private Sub ApplyFormatingToCell(ByRef vRange As Range, bgrColor As BackgroundColors, fntColor As FontColors)
+'    vRange.Interior.Color = bgrColor
+'    vRange.Font.Color = fntColor
+'    vRange.BorderAround xlContinuous, xlHairline, xlColorIndexAutomatic
+''    vRange.Borders.LineStyle = xlContinuous 'xlNone
+''    vRange.Borders.Weight = xlHairline
+'End Sub
 
 Private Sub ProcessCalculationTrigger(fieldName As String, ByRef obValidatedResult As clsValidationResult, CalcOverwriteExistingVal As Boolean)
     Select Case fieldName

@@ -1,4 +1,6 @@
 Attribute VB_Name = "mdlFlatbedScanner"
+Option Explicit
+
 'Moved to Config Tab
 'Public Const FBS_HostIP = "10.90.121.149"
 'Public Const FBS_ScpiPort = 2500
