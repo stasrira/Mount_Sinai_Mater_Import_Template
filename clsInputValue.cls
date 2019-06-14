@@ -50,16 +50,7 @@ Public Function InitializeValues(Target As Range) As Boolean
     ValidationErrors.ValidatedCellAddress = cellProperties.CellAddress
     
     'get the Field Settings for the field being updated
-    If Not dictFieldSettings.Exists(cellProperties.CellFieldName) Then
-        Set oFieldSettings = New clsFieldSettings
-        'oFieldSettings.InitializeValues FieldName
-        oFieldSettings.InitializeValues cellProperties
-        dictFieldSettings.Add cellProperties.CellFieldName, oFieldSettings
-    Else
-        Set oFieldSettings = dictFieldSettings(cellProperties.CellFieldName)
-        oFieldSettings.UpdateVolatileSettings cellProperties
-    End If
-    'FieldValueValidated = ValidateFieldValue()
+    Set oFieldSettings = GetFieldSettingsInstance(cellProperties, True, cellProperties.CellFieldName)
     
     InitializeValues = True
 End Function

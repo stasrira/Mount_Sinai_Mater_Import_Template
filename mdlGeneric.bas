@@ -305,7 +305,7 @@ Public Sub ExportValidateSheet()
     Dim dirExists As Boolean, OFSO As FileSystemObject, fileFormat As Integer
     Dim fDialog As FileDialog, result As Integer, iTempCount As Integer
     Dim bManifests As Boolean, iResponse As Integer
-    
+    Dim oFieldSettings As clsFieldSettings
     
     Application.ScreenUpdating = False
     Application.DisplayAlerts = False
@@ -397,8 +397,12 @@ ShowDialog:
                         MsgBox "Export of Validated sheet was successfully completed and the following file was created" & vbCrLf & fileName, _
                                 vbOKOnly + vbInformation, "Export Validated Sheet"
                         
-                        'prompt users to submit Manifest IDs
-                        bManifests = CBool(GetConfigValue("Manifest_Prompt_OnExport"))
+                        'prompt users to submit Manifest IDs, if manifest_id field exists in FieldSettings and also configuration setting "Manifest_Prompt_OnExport" is True
+                        'bManifests = CBool(GetConfigValue("Manifest_Prompt_OnExport"))
+                        Set oFieldSettings = GetFieldSettingsInstance(Nothing, False, "MT_ManifestID") 'get FieldSettings object for MT_ManifestID field
+                        If oFieldSettings.DataAvailable And CBool(GetConfigValue("Manifest_Prompt_OnExport")) Then
+                            bManifests = True
+                        End If
                         If bManifests Then
                             iResponse = MsgBox("Do you also want to submit Manifest IDs exported in this file to the database?" & _
                                         vbCrLf & vbCrLf & "If you want to proceed, click 'OK'. If not, click 'Cancel'.", _
@@ -426,7 +430,6 @@ ShowDialog:
 End Sub
 
 Public Function GetFieldSettingsInstance(cellProperties As clsCellProperties, Optional updateVolatileSetting As Boolean = True, Optional fieldName As String = "")
-    'TODO: this function should be called from all places where dictFieldSettings is validated for presense of an object for a given field name
     Dim oFieldSettings As clsFieldSettings
     
     If cellProperties Is Nothing And Len(Trim(fieldName)) > 0 Then
@@ -479,15 +482,8 @@ Public Sub RemoveColumnsExcludedFromExport(tempWorksheet As Worksheet, sourceWor
             cellProperties.InitializeValues rCell.Address
 
             'get the Field Settings for the selected field
-            'populate dictFieldSettings dictionary with an entry for each of the Fields
-            If Not dictFieldSettings.Exists(cellProperties.CellFieldName) Then
-                Set oFieldSettings = New clsFieldSettings
-                oFieldSettings.InitializeValues cellProperties
-                dictFieldSettings.Add cellProperties.CellFieldName, oFieldSettings
-            Else
-                Set oFieldSettings = dictFieldSettings(cellProperties.CellFieldName)
-                'oFieldSettings.UpdateVolatileSettings cellProperties 'in this sub we do not care about volatile values
-            End If
+            Set oFieldSettings = GetFieldSettingsInstance(cellProperties, False, cellProperties.CellFieldName)
+
 'Debug.Print "Columns in 1st row range: " & rRng.Columns.Count, oFieldSettings.fieldName, rCell.Address, "Exclude: " & oFieldSettings.FieldExcludeFromExport, "curOffSet = " & curOffSet
 
             'if the current field is marked as Excluded From Export, drop the current column
@@ -593,15 +589,8 @@ Public Sub ApplyDropdownSettingsToCells(Optional sWorksheetName As String = "Raw
 
             'get the Field Settings for the selected field
             'populate dictFieldSettings dictionary with an entry for each of the Fields
-            If Not dictFieldSettings.Exists(cellProperties.CellFieldName) Then
-                Set oFieldSettings = New clsFieldSettings
-                oFieldSettings.InitializeValues cellProperties
-                dictFieldSettings.Add cellProperties.CellFieldName, oFieldSettings
-            Else
-                Set oFieldSettings = dictFieldSettings(cellProperties.CellFieldName)
-                'oFieldSettings.UpdateVolatileSettings cellProperties 'in this sub we do not care about volatile values
-            End If
-            
+            Set oFieldSettings = GetFieldSettingsInstance(cellProperties, False, cellProperties.CellFieldName)
+
             'Debug.Print oFieldSettings.fieldName
             
             'Debug.Print .Range(Cells(rCell.Row, rCell.Column).Address & ":" & Cells(rCell.EntireColumn.Rows.Count, rCell.Column).Address).Address 'rCell.EntireColumn.Rows.Count
