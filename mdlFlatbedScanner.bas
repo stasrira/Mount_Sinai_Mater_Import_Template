@@ -379,7 +379,7 @@ Function PostScanResultsToPage(scan_result As String, rackId_val As String) As S
     Dim input_arr() As String
     Dim dest_range As Range, cur_range As Range
     Dim scanOK_cnt As Integer, scanNotOk_cnt As Integer
-    Dim out_result As String
+    Dim out_result As String, i As Integer
     
     'replace "Line End" (caption of the last column with vbCrLf
     scan_result = Replace(scan_result, Scanner_LineEnd_Header, vbCrLf)

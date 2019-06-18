@@ -243,6 +243,15 @@ Public Sub ValidateWholeWorksheet(Optional startCell As String = "A1", Optional 
     
 End Sub
 
+Public Sub ApplyFormatingToCell(ByRef vRange As Range, bgrColor As BackgroundColors, fntColor As FontColors)
+    vRange.Interior.Color = bgrColor
+    vRange.Font.Color = fntColor
+    vRange.BorderAround xlContinuous, xlHairline, xlColorIndexAutomatic
+    'vRange.BorderAround xlContinuous, xlNone, xlColorIndexAutomatic
+'    vRange.Borders.LineStyle = xlContinuous 'xlNone
+'    vRange.Borders.Weight = xlHairline
+End Sub
+
 Private Sub RemoveFormattingAndContents(Optional sWorksheetName As String = "RawData", Optional startRow As String = "$2", Optional ClearContents As Boolean = False)
     
     Dim iCols As Integer, iRows As Integer
@@ -1365,14 +1374,14 @@ Public Sub CopyValuesToDictionarySheet(sourceRandgeAddress As String, targetRang
                 Dim rBlanks1 As Range, rBlanks2 As Range
                 'this will delete blank cells in the target range. This might be needed if flatbed scanner returns some empty values for absent tubes
                 If targetRange.Cells.Count > 1 Then
-                    On Error GoTo Err1 'this should catch cases when no empty cells are found - excel generates an error in such situation
+                    On Error GoTo err1 'this should catch cases when no empty cells are found - excel generates an error in such situation
                     
                     Set rBlanks1 = targetRange.Offset(0, 2).SpecialCells(xlCellTypeBlanks)
                     Set rBlanks2 = targetRange.SpecialCells(xlCellTypeBlanks)
                     rBlanks1.Delete xlShiftUp
                     rBlanks2.Delete xlShiftUp
                     
-Err1:
+err1:
                     On Error GoTo 0 'resume default error handling
                     
                 End If
