@@ -10,6 +10,7 @@ Public Const cValidatedWorksheetName = "Validated"
 Public Const cSettingsWorksheetName = "FieldSettings"
 Public Const cDictionayWorksheetName = "Dictionary"
 Public Const cFlatbedScansWorksheetName = "FlatbedScans"
+Public Const cHandledScansWorksheetName = "HandledScans"
 Public Const cConfigWorksheetName = "Configuration"
 
 
@@ -29,7 +30,6 @@ Public dictValidationResults As New Dictionary
 Public dictFieldSettings As New Dictionary
 
 Public bVoidAutomatedValidation As Boolean
-Public bVoidDropDownFunctionality As Boolean
 Public bFieldHeadersWereSynced As Boolean
 Public bSetCtrlVPasteAsValues As Boolean
 
@@ -44,6 +44,7 @@ Public Enum ValidationErrorStatus
 End Enum
 
 Public Enum ValidationOutcomeStatus
+    Undefined = -1
     ValidationPassed = 0
     DefaultAssigned = 1
     MapConversionApplied = 2
@@ -241,6 +242,15 @@ Public Sub ValidateWholeWorksheet(Optional startCell As String = "A1", Optional 
     
 End Sub
 
+Public Sub ApplyFormatingToCell(ByRef vRange As Range, bgrColor As BackgroundColors, fntColor As FontColors)
+    vRange.Interior.Color = bgrColor
+    vRange.Font.Color = fntColor
+    vRange.BorderAround xlContinuous, xlHairline, xlColorIndexAutomatic
+    'vRange.BorderAround xlContinuous, xlNone, xlColorIndexAutomatic
+'    vRange.Borders.LineStyle = xlContinuous 'xlNone
+'    vRange.Borders.Weight = xlHairline
+End Sub
+
 Private Sub RemoveFormattingAndContents(Optional sWorksheetName As String = "RawData", Optional startRow As String = "$2", Optional ClearContents As Boolean = False)
     
     Dim iCols As Integer, iRows As Integer
@@ -303,7 +313,7 @@ Public Sub ExportValidateSheet()
     Dim dirExists As Boolean, OFSO As FileSystemObject, fileFormat As Integer
     Dim fDialog As FileDialog, result As Integer, iTempCount As Integer
     Dim bManifests As Boolean, iResponse As Integer
-    
+    Dim oFieldSettings As clsFieldSettings
     
     Application.ScreenUpdating = False
     Application.DisplayAlerts = False
@@ -395,8 +405,12 @@ ShowDialog:
                         MsgBox "Export of Validated sheet was successfully completed and the following file was created" & vbCrLf & fileName, _
                                 vbOKOnly + vbInformation, "Export Validated Sheet"
                         
-                        'prompt users to submit Manifest IDs
-                        bManifests = CBool(GetConfigValue("Manifest_Prompt_OnExport"))
+                        'prompt users to submit Manifest IDs, if manifest_id field exists in FieldSettings and also configuration setting "Manifest_Prompt_OnExport" is True
+                        'bManifests = CBool(GetConfigValue("Manifest_Prompt_OnExport"))
+                        Set oFieldSettings = GetFieldSettingsInstance(Nothing, False, "MT_ManifestID") 'get FieldSettings object for MT_ManifestID field
+                        If oFieldSettings.DataAvailable And CBool(GetConfigValue("Manifest_Prompt_OnExport")) Then
+                            bManifests = True
+                        End If
                         If bManifests Then
                             iResponse = MsgBox("Do you also want to submit Manifest IDs exported in this file to the database?" & _
                                         vbCrLf & vbCrLf & "If you want to proceed, click 'OK'. If not, click 'Cancel'.", _
@@ -424,7 +438,6 @@ ShowDialog:
 End Sub
 
 Public Function GetFieldSettingsInstance(cellProperties As clsCellProperties, Optional updateVolatileSetting As Boolean = True, Optional fieldName As String = "")
-    'TODO: this function should be called from all places where dictFieldSettings is validated for presense of an object for a given field name
     Dim oFieldSettings As clsFieldSettings
     
     If cellProperties Is Nothing And Len(Trim(fieldName)) > 0 Then
@@ -477,15 +490,8 @@ Public Sub RemoveColumnsExcludedFromExport(tempWorksheet As Worksheet, sourceWor
             cellProperties.InitializeValues rCell.Address
 
             'get the Field Settings for the selected field
-            'populate dictFieldSettings dictionary with an entry for each of the Fields
-            If Not dictFieldSettings.Exists(cellProperties.CellFieldName) Then
-                Set oFieldSettings = New clsFieldSettings
-                oFieldSettings.InitializeValues cellProperties
-                dictFieldSettings.Add cellProperties.CellFieldName, oFieldSettings
-            Else
-                Set oFieldSettings = dictFieldSettings(cellProperties.CellFieldName)
-                'oFieldSettings.UpdateVolatileSettings cellProperties 'in this sub we do not care about volatile values
-            End If
+            Set oFieldSettings = GetFieldSettingsInstance(cellProperties, False, cellProperties.CellFieldName)
+
 'Debug.Print "Columns in 1st row range: " & rRng.Columns.Count, oFieldSettings.fieldName, rCell.Address, "Exclude: " & oFieldSettings.FieldExcludeFromExport, "curOffSet = " & curOffSet
 
             'if the current field is marked as Excluded From Export, drop the current column
@@ -591,15 +597,8 @@ Public Sub ApplyDropdownSettingsToCells(Optional sWorksheetName As String = "Raw
 
             'get the Field Settings for the selected field
             'populate dictFieldSettings dictionary with an entry for each of the Fields
-            If Not dictFieldSettings.Exists(cellProperties.CellFieldName) Then
-                Set oFieldSettings = New clsFieldSettings
-                oFieldSettings.InitializeValues cellProperties
-                dictFieldSettings.Add cellProperties.CellFieldName, oFieldSettings
-            Else
-                Set oFieldSettings = dictFieldSettings(cellProperties.CellFieldName)
-                'oFieldSettings.UpdateVolatileSettings cellProperties 'in this sub we do not care about volatile values
-            End If
-            
+            Set oFieldSettings = GetFieldSettingsInstance(cellProperties, False, cellProperties.CellFieldName)
+
             'Debug.Print oFieldSettings.fieldName
             
             'Debug.Print .Range(Cells(rCell.Row, rCell.Column).Address & ":" & Cells(rCell.EntireColumn.Rows.Count, rCell.Column).Address).Address 'rCell.EntireColumn.Rows.Count
@@ -898,26 +897,6 @@ Private Function ValidationErrorStatus_toString(status As ValidationErrorStatus)
     
 End Function
 
-Public Sub SwitchDropDownFunctionaltiyOnOff()
-    Dim strCurMenuCaption As String
-    
-    'get current menu caption
-    'strCurMenuCaption = cCustomMenu_SetDropdowonFunc & IIf(bVoidDropDownFunctionality, "ON", "OFF")
-    strCurMenuCaption = GetSwitchableMenuCaption(bVoidDropDownFunctionality, cCustomMenu_SetDropdowonFunc, cCustomMenu_SetDropdowonFunc_ShortCut)
-    
-    'reset boolean flag
-    bVoidDropDownFunctionality = IIf(bVoidDropDownFunctionality, False, True)
-    
-    'Update Menu caption
-    Application.CommandBars("Worksheet Menu Bar").Controls(cCustomMenuName).Controls(cCustomMenu_SubMenuSettings).Controls(strCurMenuCaption).Caption = _
-        GetSwitchableMenuCaption(bVoidDropDownFunctionality, cCustomMenu_SetDropdowonFunc, cCustomMenu_SetDropdowonFunc_ShortCut)
-        'cCustomMenu_SetDropdowonFunc & IIf(bVoidDropDownFunctionality, "ON", "OFF") & "    CTRL+SHIFT+D"
-    
-    MsgBox "Dropdown functionality on ""RawData"" sheet was turned " & IIf(bVoidAutomatedValidation, "ON", "OFF") & "." & vbCrLf & vbCrLf & _
-        "Note: Dropdown functionality can be switched through the ""Add-Ins/MSSM Menu/Settings/Set Dropdown Functionality"" menu. ", _
-        vbInformation, "Automatic Validation Status"
-End Sub
-
 Public Sub SwitchValidationFunctionaltiyOnOff()
     Dim strCurMenuCaption As String
     
@@ -1074,12 +1053,6 @@ Public Sub LoadCustomMenus()
                 '.Caption = cCustomMenu_SetValidationFunc & IIf(bVoidAutomatedValidation, "ON", "OFF")
                 .Caption = GetSwitchableMenuCaption(bVoidAutomatedValidation, cCustomMenu_SetValidationFunc, cCustomMenu_SetValidationFunc_ShortCut)
                 .OnAction = "SwitchValidationFunctionaltiyOnOff"
-                .FaceId = 611
-            End With
-            With .Controls.Add(Type:=msoControlButton)
-                '.Caption = cCustomMenu_SetDropdowonFunc & IIf(bVoidDropDownFunctionality, "ON", "OFF")
-                .Caption = GetSwitchableMenuCaption(bVoidDropDownFunctionality, cCustomMenu_SetDropdowonFunc, cCustomMenu_SetDropdowonFunc_ShortCut)
-                .OnAction = "SwitchDropDownFunctionaltiyOnOff"
                 .FaceId = 611
             End With
             With .Controls.Add(Type:=msoControlButton)
@@ -1299,3 +1272,94 @@ Public Function Get_MiscSettingValue(field_name As String, setting_name As Strin
     Get_MiscSettingValue = outVal
     
 End Function
+
+'this sub initiates copying collected scans to Dictionary tab.
+'this will check "scanner" property of the misc_settings column to match name of the current worksheet with that. Process won't go through if there is no match.
+Public Sub RequestCopyScansToDict(fld_name As String, ws_name As String, scansRngAddr As String, Optional miscVarName As String = "scanner")
+    Dim oFieldSettings As clsFieldSettings
+    
+    If Get_MiscSettingValue(fld_name, miscVarName) = ws_name Then
+        'set parameters for MT_Box Label field.
+        Set oFieldSettings = GetFieldSettingsInstance(Nothing, False, fld_name)
+        If oFieldSettings.DataAvailable And Len(Trim(oFieldSettings.FieldDropDownValueLookupRange)) Then
+            'sourceRangeAddress = "D1" 'first cell of the column storring the list of Box IDs on the FlatbedScans tab
+            CopyValuesToDictionarySheet scansRngAddr, oFieldSettings.FieldDropDownValueLookupRange, ws_name, True
+        End If
+        'CopyBoxIDsToDictionarySheet oFieldSettings.FieldDropDownValueLookupRange
+        'CopyBoxIDsToDictionarySheet "BA3" ' - for test only
+    End If
+End Sub
+
+'used from FlatbedScanner and HandledScanner sheets
+'copy values (i.e. Box ID ) entered on the Flatbedscanner sheet to the Dictionary sheet to populate values for corresponede dropdown (i.e. MT_Box ID)
+Public Sub CopyValuesToDictionarySheet(sourceRandgeAddress As String, targetRangeAddress As String, ws_name As String, Optional CopyUniqueValuesOnly As Boolean = False)
+
+    With Worksheets(ws_name)
+        
+        Dim targetRange As Range, sourceRange As Range, tRange As Range
+        Dim targetRangeStart As Range, targetRangeEnd As Range
+        
+        Set sourceRange = .Range(sourceRandgeAddress & ":" & .Range(sourceRandgeAddress).Offset(.Rows.Count - .Range(sourceRandgeAddress).Row).End(xlUp).Address) 'this source range will include all cells (in this column) located below the given cell
+        
+        With Worksheets(cDictionayWorksheetName)
+            'clear target range
+            Set targetRangeStart = .Range(targetRangeAddress)
+            Set targetRangeEnd = .Range(targetRangeAddress).Offset(.Rows.Count - .Range(targetRangeAddress).Row, 0).End(xlUp)
+            If targetRangeEnd.Row < targetRangeStart.Row Then
+                Set targetRangeEnd = targetRangeStart
+            End If
+            Set targetRange = .Range(targetRangeStart.Address & ":" & targetRangeEnd.Address)
+            'Set targetRange = .Range(targetRangeAddress & ":" & .Range(targetRangeAddress).Offset(.Rows.Count - .Range(targetRangeAddress).Row).End(xlUp).Address)
+            targetRange.Clear
+            targetRange.Offset(0, 2).Clear
+            
+            'reset target range to point to the first cell only, this is required to copy all available cells from the source range
+            Set targetRange = .Range(targetRangeAddress) 'this range points the first cell in column that will hold copied values (i.e. "BA3")
+        End With
+        
+        If sourceRange.Cells.Count > 1 Then 'proceed with copying data only if the source has some data (beside the header cell)
+            'copy unique list of Box IDs from Flatbed scanner sheet to Dictionary. Because Box IDs repeats for muptiple Barcodes, only unique values will be copied to dictionary
+            sourceRange.AdvancedFilter Action:=xlFilterCopy, CopyToRange:=targetRange, unique:=CopyUniqueValuesOnly
+            'copy the same information (as in previous row) to the 2nd column shifted to the right on 2 cells
+            sourceRange.AdvancedFilter Action:=xlFilterCopy, CopyToRange:=targetRange.Offset(0, 2), unique:=CopyUniqueValuesOnly
+            '.Range("D1:" & .Range("D1").End(xlDown).Address).AdvancedFilter Action:=xlFilterCopy, CopyToRange:=Worksheets(cDictionayWorksheetName).Range("BC3"), Unique:=True
+            
+            'sort all copied values (in both columns)
+            Set tRange = Worksheets(cDictionayWorksheetName).Range(targetRange.Address & ":" & targetRange.Offset(0, 2).End(xlDown).Address)
+            tRange.Sort key1:=tRange, Header:=xlYes
+            
+            'delete header titles (Excel always copies headers) from the target range
+            targetRange.Offset(0, 2).Delete xlShiftUp
+            targetRange.Delete xlShiftUp 'delete the first cell (that holds title of the source column) from the target range
+            
+             With Worksheets(cDictionayWorksheetName)
+                'this will re-evaluate range of the actually copied values and set number format for each cell to "Text"
+                'clear target range
+                        'Old code - TO DELETE - Set targetRange = .Range(targetRangeAddress & ":" & .Range(targetRangeAddress).Offset(.Rows.Count - .Range(targetRangeAddress).Row).End(xlUp).Address)
+                'After deleting cells above, Start and End Ranges have to be re-defined
+                Set targetRangeStart = .Range(targetRangeAddress)
+                Set targetRangeEnd = .Range(targetRangeAddress).Offset(.Rows.Count - .Range(targetRangeAddress).Row).End(xlUp)
+                Set targetRange = .Range(targetRangeStart.Address & ":" & targetRangeEnd.Address)
+                '.Rows.Count - .Row
+                targetRange.NumberFormat = "@" 'this will set number format to Text
+                targetRange.Offset(0, 2).NumberFormat = "@" 'this will set number format to Text
+                
+                Dim rBlanks1 As Range, rBlanks2 As Range
+                'this will delete blank cells in the target range. This might be needed if flatbed scanner returns some empty values for absent tubes
+                If targetRange.Cells.Count > 1 Then
+                    On Error GoTo err1 'this should catch cases when no empty cells are found - excel generates an error in such situation
+                    
+                    Set rBlanks1 = targetRange.Offset(0, 2).SpecialCells(xlCellTypeBlanks)
+                    Set rBlanks2 = targetRange.SpecialCells(xlCellTypeBlanks)
+                    rBlanks1.Delete xlShiftUp
+                    rBlanks2.Delete xlShiftUp
+                    
+err1:
+                    On Error GoTo 0 'resume default error handling
+                    
+                End If
+            End With
+        End If
+        
+    End With
+End Sub

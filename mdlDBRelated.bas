@@ -254,28 +254,28 @@ Sub LoadCaptionsForRecordset(firstCellOfHeaderRow As Range, rsData As ADODB.Reco
 End Sub
 
 'TODO: Is this function necessary? Currently it is not in use.
-Function ValidatePageHeaders(firstCellOfHeaderRow As Range, rsData As ADODB.Recordset) As Boolean
-    Dim i As Integer
-    
-    With firstCellOfHeaderRow.Worksheet
-        'compare number of headers on a page and in recordset
-        If (.UsedRange.Columns.Count - firstCellOfHeaderRow.Column) <> rsData.Fields.Count Then
-            ValidatePageHeaders = False
-            Exit Function
-        End If
-        
-        'compare header captions between the page and the recordset
-        For i = 0 To rsData.Fields.Count - 1
-            If firstCellOfHeaderRow.Offset(0, i).value <> Replace(rs.data.Fields(i).Name, "_", " ") Then
-                ValidatePageHeaders = False
-                Exit Function
-            End If
-        Next
-        
-        ValidatePageHeaders = True
-    End With
-    
-End Function
+'Function ValidatePageHeaders(firstCellOfHeaderRow As Range, rsData As ADODB.Recordset) As Boolean
+'    Dim i As Integer
+'
+'    With firstCellOfHeaderRow.Worksheet
+'        'compare number of headers on a page and in recordset
+'        If (.UsedRange.Columns.Count - firstCellOfHeaderRow.Column) <> rsData.Fields.Count Then
+'            ValidatePageHeaders = False
+'            Exit Function
+'        End If
+'
+'        'compare header captions between the page and the recordset
+'        For i = 0 To rsData.Fields.Count - 1
+'            If firstCellOfHeaderRow.Offset(0, i).value <> Replace(rs.data.Fields(i).Name, "_", " ") Then
+'                ValidatePageHeaders = False
+'                Exit Function
+'            End If
+'        Next
+'
+'        ValidatePageHeaders = True
+'    End With
+'
+'End Function
 
 Public Function SubmitManifests(Optional AvoidWarningMessage As Boolean = False)
     Const msgTitle = "Submitting Manifest IDs"
