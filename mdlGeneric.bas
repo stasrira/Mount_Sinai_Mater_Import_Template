@@ -30,7 +30,6 @@ Public dictValidationResults As New Dictionary
 Public dictFieldSettings As New Dictionary
 
 Public bVoidAutomatedValidation As Boolean
-Public bVoidDropDownFunctionality As Boolean
 Public bFieldHeadersWereSynced As Boolean
 Public bSetCtrlVPasteAsValues As Boolean
 
@@ -898,26 +897,6 @@ Private Function ValidationErrorStatus_toString(status As ValidationErrorStatus)
     
 End Function
 
-Public Sub SwitchDropDownFunctionaltiyOnOff()
-    Dim strCurMenuCaption As String
-    
-    'get current menu caption
-    'strCurMenuCaption = cCustomMenu_SetDropdowonFunc & IIf(bVoidDropDownFunctionality, "ON", "OFF")
-    strCurMenuCaption = GetSwitchableMenuCaption(bVoidDropDownFunctionality, cCustomMenu_SetDropdowonFunc, cCustomMenu_SetDropdowonFunc_ShortCut)
-    
-    'reset boolean flag
-    bVoidDropDownFunctionality = IIf(bVoidDropDownFunctionality, False, True)
-    
-    'Update Menu caption
-    Application.CommandBars("Worksheet Menu Bar").Controls(cCustomMenuName).Controls(cCustomMenu_SubMenuSettings).Controls(strCurMenuCaption).Caption = _
-        GetSwitchableMenuCaption(bVoidDropDownFunctionality, cCustomMenu_SetDropdowonFunc, cCustomMenu_SetDropdowonFunc_ShortCut)
-        'cCustomMenu_SetDropdowonFunc & IIf(bVoidDropDownFunctionality, "ON", "OFF") & "    CTRL+SHIFT+D"
-    
-    MsgBox "Dropdown functionality on ""RawData"" sheet was turned " & IIf(bVoidAutomatedValidation, "ON", "OFF") & "." & vbCrLf & vbCrLf & _
-        "Note: Dropdown functionality can be switched through the ""Add-Ins/MSSM Menu/Settings/Set Dropdown Functionality"" menu. ", _
-        vbInformation, "Automatic Validation Status"
-End Sub
-
 Public Sub SwitchValidationFunctionaltiyOnOff()
     Dim strCurMenuCaption As String
     
@@ -1074,12 +1053,6 @@ Public Sub LoadCustomMenus()
                 '.Caption = cCustomMenu_SetValidationFunc & IIf(bVoidAutomatedValidation, "ON", "OFF")
                 .Caption = GetSwitchableMenuCaption(bVoidAutomatedValidation, cCustomMenu_SetValidationFunc, cCustomMenu_SetValidationFunc_ShortCut)
                 .OnAction = "SwitchValidationFunctionaltiyOnOff"
-                .FaceId = 611
-            End With
-            With .Controls.Add(Type:=msoControlButton)
-                '.Caption = cCustomMenu_SetDropdowonFunc & IIf(bVoidDropDownFunctionality, "ON", "OFF")
-                .Caption = GetSwitchableMenuCaption(bVoidDropDownFunctionality, cCustomMenu_SetDropdowonFunc, cCustomMenu_SetDropdowonFunc_ShortCut)
-                .OnAction = "SwitchDropDownFunctionaltiyOnOff"
                 .FaceId = 611
             End With
             With .Controls.Add(Type:=msoControlButton)
