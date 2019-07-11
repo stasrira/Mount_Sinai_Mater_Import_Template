@@ -67,7 +67,7 @@ Public Sub InitializeValues(cellProperties As clsCellProperties)  '(vFieldName A
         iRows = .UsedRange.Rows.Count 'number of actually used rows
         
         'identify range of actually used cells on the given spreadsheet and apply Find function
-        Set fnr = .Range(FieldSettingsFirstCell & ":" & Cells(iRows, 1).Address).Find(fieldName, LookIn:=xlValues)
+        Set fnr = .Range(FieldSettingsFirstCell & ":" & Cells(iRows, 1).Address).Find(fieldName, LookIn:=xlValues, LookAt:=xlWhole)
         'Old code --> Set fnr = .Range(cFieldsRange).Find(fieldName, LookIn:=xlValues)
         If Not fnr Is Nothing Then
             DataAvailable = True 'update a flag to reflect that object can be safely used
@@ -99,11 +99,12 @@ Public Sub InitializeValues(cellProperties As clsCellProperties)  '(vFieldName A
             FieldNumericOnlyType = GetCellValueWithErrorCheck(.Range(cAddrNumericOnly + fieldRowNum)) '.Range(cAddrNumericOnly + fieldRowNum).value
             'read Misc_Settings value
             FieldMiscSettings = GetCellValueWithErrorCheck(.Range(cAddrMiscSettings + fieldRowNum)) '.Range(cAddrMiscSettings + fieldRowNum).value
+            
             'get column letter of the current field as it will be present on the Validated sheet, i.e. A, B, AA, ...
             iCols = Worksheets(cValidatedWorksheetName).UsedRange.Columns.Count
             Set r = Worksheets(cValidatedWorksheetName).Range("A1:" & Cells(1, iCols).Address)
             'Address property will return value similar to $D$1; splitting it by '$' and taking element #1 to get a letter
-            FieldColumnNameOnRawData = Split(r.Find("MT_Vessel ID", LookIn:=xlValues).Address, "$")(1)
+            FieldColumnNameOnRawData = Split(r.Find(fieldName, LookIn:=xlValues).Address, "$")(1)
             
             UpdateVolatileSettings cellProperties
             
