@@ -232,6 +232,11 @@ Private Function EvalCellValueWithRef(cell As Range, cellProperties As clsCellPr
 
     Dim vFormulaToValidate As String
     
+    'for testing only
+    If cellProperties.CellAddress = "$AS$2" Or cellProperties.CellAddress = "$AS$3" Then
+        Debug.Print cellProperties.CellAddress
+    End If
+    
     vFormulaToValidate = GetCellValueWithErrorCheck(cell)
         
     If Len(vFormulaToValidate) > 0 Then
@@ -288,8 +293,13 @@ Private Function FindFieldValue(fieldName As String, cellProperties As clsCellPr
     fieldName = Replace(Replace(fieldName, "{", ""), "}", "") 'remove figure brackets from the name
     
     With Worksheets(cValidatedWorksheetName)
-        'FindFieldValue = """" & Application.WorksheetFunction.HLookup(fieldName, .Range("A1:Z" & cellProperties.cellRow), cellProperties.cellRow, False) & """"
-        FindFieldValue = CStr(Application.WorksheetFunction.HLookup(fieldName, .Range("A1:Z" & cellProperties.cellRow), cellProperties.cellRow, False))
+        Dim r As Variant, ur_addr As String
+        r = Split(.UsedRange.Address, "$") ' identify used range on the sheet, i.e. $A$1:$AT$30 and split it to an array
+        r(UBound(r)) = cellProperties.cellRow 'update row number of the last column of the range with the row number of the cell being used
+        ur_addr = Join(r, "$") 'join the updated array back to a string
+        
+        'OLD code - FindFieldValue = CStr(Application.WorksheetFunction.HLookup(fieldName, .Range("A1:ZZ" & cellProperties.cellRow), cellProperties.cellRow, False))
+        FindFieldValue = CStr(Application.WorksheetFunction.HLookup(fieldName, .Range(ur_addr), cellProperties.cellRow, False))
     End With
 
 End Function
