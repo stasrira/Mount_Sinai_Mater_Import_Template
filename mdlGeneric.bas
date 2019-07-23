@@ -26,6 +26,20 @@ Public Const cRawData_FirstColumnCell = "A1"
 Public Const cValidated_FirstColumnCell = "A1"
 Public Const cConfig_FirstFieldCell = "A2"
 
+'This group of constants is used from FieldsSettings class. Also it will be reused from other places working with the Field Setting sheet.
+Public Const cAddrDropdownErrorMessage = "$B"
+Public Const cAddrDefault = "$C"
+Public Const cAddrRequired = "$D"
+Public Const cAddrDropDown = "$E"
+Public Const cAddrDropDownValueLookupRange = "$F"
+Public Const cAddrCalcTrigger = "$G"
+Public Const cAddrCalcOverwriteExistingVal = "$H"
+Public Const cAddrCalculated = "$I"
+Public Const cAddrDateField = "$J"
+Public Const cAddrExportAssignment = "$K"
+Public Const cAddrNumericOnly = "$L"
+Public Const cAddrMiscSettings = "$M"
+
 Public dictValidationResults As New Dictionary
 Public dictFieldSettings As New Dictionary
 
@@ -305,8 +319,30 @@ Public Sub ClearFormatingOfWorkbook_MenuCall()
     RemoveFormattingAndContents cValidatedWorksheetName, "$1"
 End Sub
 
+Public Function GetExportAssignment() As String
+    Dim sch As Integer
+    Dim strOut As String
+    
+    sch = SelectExportSchema()
+    
+    If sch < 0 Then 'abort exporting
+        strOut = ""
+    Else
+        If colExportItems.Count >= sch + 1 Then
+            strOut = colExportItems(sch + 1)
+        Else
+            strOut = ""
+        End If
+    End If
+    GetExportAssignment = strOut '"stas2"
+End Function
+
+
 Public Sub ExportValidateSheet()
     Const numAttempts = 3
+    Const ManifestFieldName = "MT_ManifestID" 'name of the field storing Manifest ID
+    Const StudyIdSettingName = "study_id" 'name of the Misc setting of the Manifest ID field storing study_id for submitting Manifest ID to Metadata DB
+    
     
     Dim xPath As String, xWs As Worksheet
     Dim fileName As String, strResp As String
@@ -314,9 +350,16 @@ Public Sub ExportValidateSheet()
     Dim fDialog As FileDialog, result As Integer, iTempCount As Integer
     Dim bManifests As Boolean, iResponse As Integer
     Dim oFieldSettings As clsFieldSettings
+    Dim sExportAssignment As String
+    Dim mnf_study_id As String 'will hold study_id value for submission (if applicable) of the Manifest ID field
     
     Application.ScreenUpdating = False
     Application.DisplayAlerts = False
+    
+    sExportAssignment = GetExportAssignment()
+    If sExportAssignment = "" Then
+        Exit Sub 'abort Exporting process
+    End If
     
     For Each xWs In ThisWorkbook.Sheets
         If xWs.Name = cValidatedWorksheetName Then 'identify Validated worksheet
@@ -331,33 +374,15 @@ Public Sub ExportValidateSheet()
             fDialog.ButtonName = "Export As"
             fDialog.InitialFileName = fileName
             
-            'MsgBox "The Export process supports only exporting data in comma separated value (.csv) or tab delimited text (.txt) formats." & vbCrLf & vbCrLf & "Please select one of these formats when choosing an export file format on the next step.", vbInformation, "Export File"
-            MsgBox "The Export process supports only exporting data in comma separated value (.csv) format. Any other formats will be ignored by the system.", vbInformation, "Export File"
+            'This message was moved to the pop-up form and being set from "PrepareForm" function of mdlPopupForm module
+            'MsgBox "The Export process supports only exporting data in comma separated value (.csv) format. Any other formats will be ignored by the system.", vbInformation, "Export File"
+            
 
 ShowDialog:
             result = fDialog.Show
              
             If result = -1 Then
 '                'allow only .csv and tab delimited (.txt) files to go through
-'                Select Case fDialog.FilterIndex
-'                    Case 5
-'                        fileFormat = 6 'csv file
-'                    Case 12
-'                        fileFormat = -4158 'tab delimited (.txt) file
-'                    Case Else
-'                        iTempCount = iTempCount + 1
-'                        If iTempCount >= numAttempts Then
-'                            MsgBox "Too many attempts. Exiting Exporting Process.", vbCritical
-'                            Exit Sub
-'                        End If
-'
-'                        MsgBox "Please select a comma separated value (.csv) or a tab delimited text (.txt) file formats and try again." _
-'                            & vbCrLf & vbCrLf & "Attempt " & CStr(iTempCount) & " out of " & CStr(numAttempts), vbCritical, "Export File Format Error"
-'                        GoTo ShowDialog:
-'                End Select
-            
-                'Debug.Print fDialog.SelectedItems(1)
-                'fileName = fDialog.SelectedItems(1)
                 'force CSV format.
                 fileName = Left(fDialog.SelectedItems(1), InStrRev(fDialog.SelectedItems(1), ".")) & "csv" ' this will replace any selected extension with "csv"
                 fileFormat = 6 'force csv file format
@@ -380,15 +405,9 @@ ShowDialog:
                         ThisWorkbook.Sheets(tempSheetName).Cells.PasteSpecial Paste:=xlPasteAll 'copy all data from memory to the created sheet
                         
                         'delete columns that should be excluded from the export
-                        RemoveColumnsExcludedFromExport ThisWorkbook.Sheets(tempSheetName), xWs
+                        RemoveColumnsExcludedFromExport ThisWorkbook.Sheets(tempSheetName), xWs, sExportAssignment
                         
                         ThisWorkbook.Sheets(tempSheetName).Copy 'copy the sheet as a Workbook. This will be used by SaveAs method
-                        'xWs.Copy
-                        
-                        'delete any code behind from the copied worksheet
-'                        With Application.ActiveWorkbook.VBProject.VBComponents(Application.ActiveSheet.CodeName).CodeModule
-'                            .DeleteLines 1, .CountOfLines
-'                        End With
                             
                         'for testing only
                         'Application.ActiveWorkbook.SaveAs xPath & "\" & xWs.name & "_" & Format(Now(), "mmddyyyy_HHMMSS") & ".csv", 6 ', , , , , , 1 ' xlUserResolution = 1 '_HHMMSS
@@ -409,7 +428,13 @@ ShowDialog:
                         'bManifests = CBool(GetConfigValue("Manifest_Prompt_OnExport"))
                         Set oFieldSettings = GetFieldSettingsInstance(Nothing, False, "MT_ManifestID") 'get FieldSettings object for MT_ManifestID field
                         If oFieldSettings.DataAvailable And CBool(GetConfigValue("Manifest_Prompt_OnExport")) Then
-                            bManifests = True
+                            'get Study ID from misc settings for the ManifestID field. If it is not present, do not submit Manifest ID
+                            mnf_study_id = Get_MiscSettingValue(ManifestFieldName, StudyIdSettingName)
+                            If Len(Trim(mnf_study_id)) > 0 Then
+                                bManifests = True
+                            Else
+                                bManifests = False
+                            End If
                         End If
                         If bManifests Then
                             iResponse = MsgBox("Do you also want to submit Manifest IDs exported in this file to the database?" & _
@@ -417,7 +442,7 @@ ShowDialog:
                                         vbOKCancel + vbInformation, "Submitting Manfiest IDs")
                                         
                             If iResponse = vbOK Then
-                                SubmitManifests True
+                                SubmitManifests mnf_study_id, True
                             End If
                         End If
                         
@@ -465,12 +490,14 @@ Public Function GetFieldSettingsInstance(cellProperties As clsCellProperties, Op
 End Function
 
 'this function will loop through the FieldSettings Dictionary and check if any of the fields have to be excluded from the export. If such field found, the corresponded column will be deleted from the passed worksheet
-Public Sub RemoveColumnsExcludedFromExport(tempWorksheet As Worksheet, sourceWorksheet As Worksheet)
+Public Sub RemoveColumnsExcludedFromExport(tempWorksheet As Worksheet, sourceWorksheet As Worksheet, sExportAssignment As String)
     Dim rRng As Range, rCell As Range, rDropDown As Range ', rDropDownValues As Range
-    Dim iCols As Integer
+    Dim iCols As Integer, i As Integer
     Dim oFieldSettings As clsFieldSettings
     Dim cellProperties As clsCellProperties
     Dim curOffSet As Integer 'this number will track number of deleted columns and off-set the address of the collumns following the deleted one
+    Dim expAssignments() As String
+    Dim inclField As Boolean
     
     Const startCell = "A2" 'first cell containing field values
     
@@ -491,11 +518,25 @@ Public Sub RemoveColumnsExcludedFromExport(tempWorksheet As Worksheet, sourceWor
 
             'get the Field Settings for the selected field
             Set oFieldSettings = GetFieldSettingsInstance(cellProperties, False, cellProperties.CellFieldName)
-
-'Debug.Print "Columns in 1st row range: " & rRng.Columns.Count, oFieldSettings.fieldName, rCell.Address, "Exclude: " & oFieldSettings.FieldExcludeFromExport, "curOffSet = " & curOffSet
-
+            
+            'check if the current field should be included to the current export (defined by the sExportAssignment parameter)
+            inclField = False
+            expAssignments = Split(oFieldSettings.FieldExportAssignment, ",") ' get list of all export assignments of the current field
+            If UBound(expAssignments) < 0 Then
+                'no explicit export assignments, include the field by default
+                inclField = True
+            Else
+                For i = 0 To UBound(expAssignments)
+                    'if items is assigned to the given Export assignment or has no assignments at all (blank) which is considered Default
+                    If Trim(expAssignments(i)) = sExportAssignment Or Len(Trim(expAssignments(i))) = 0 Then
+                       inclField = True
+                       Exit For
+                    End If
+                Next
+            End If
+            
             'if the current field is marked as Excluded From Export, drop the current column
-            If oFieldSettings.FieldExcludeFromExport Then
+            If Not inclField Then
                 'Range(cellProperties.CellAddress).EntireColumn.Delete
                 'Offset method below is used to compensate address changes of the current cell in case if any of the preceding columns were deleted. By default curOffSet = 0
                 .Range(cellProperties.CellAddress).Offset(0, curOffSet).EntireColumn.Delete
@@ -758,7 +799,7 @@ Private Function CellValidationReport(curCell As Range) As ValidationReportMsg
             sb.Append IIf(oFieldSettings.FieldCalcOverwriteExistingVal, "Yes", "No") & vbCrLf
         End If
         sb.Append "Exclude From Export: "
-        sb.Append IIf(oFieldSettings.FieldExcludeFromExport, "Yes", "No") & vbCrLf
+        sb.Append oFieldSettings.FieldExportAssignment & vbCrLf
         
         'MsgBox sb.toString, IIf(oValidationResults.ValidationErrors.ErrorCount > 0, vbExclamation, vbInformation), "Validation Results"
         outVal.ValidationMessage = sb.toString

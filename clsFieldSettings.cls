@@ -21,8 +21,7 @@ Public FieldCalculated As Boolean
 Public FieldCalcTrigger As Boolean
 Public FieldCalcOverwriteExistingVal As Boolean
 Public FieldDateType As Boolean
-Public FieldExcludeFromExport As Boolean 'if set to true, the column corresponding to this field won't be included into the export file
-'Public FieldColumnAddressOnRawDataSheet As String 'will hold the address of the column on the RawData sheet corresponding to the current field
+Public FieldExportAssignment As String
 Public FieldNumericOnlyType As Boolean
 Public FieldMiscSettings As String
 Public FieldColumnNameOnRawData As String
@@ -32,19 +31,6 @@ Private fieldRowNum As String 'Will hold address of the row containing the field
 
 'Private Const cFieldsRange = "A2:A100" ' part of old code
 
-'TODO this assingment should idealy be going from a table structure on the Dictionary sheet
-Const cAddrDropdownErrorMessage = "$B"
-Const cAddrDefault = "$C"
-Const cAddrRequired = "$D"
-Const cAddrDropDown = "$E"
-Const cAddrDropDownValueLookupRange = "$F"
-Const cAddrCalcTrigger = "$G"
-Const cAddrCalcOverwriteExistingVal = "$H"
-Const cAddrCalculated = "$I"
-Const cAddrDateField = "$J"
-Const cAddrExcludeFromExport = "$K"
-Const cAddrNumericOnly = "$L"
-Const cAddrMiscSettings = "$M"
 
 
 Public Sub InitializeValues(cellProperties As clsCellProperties)  '(vFieldName As String)
@@ -94,7 +80,7 @@ Public Sub InitializeValues(cellProperties As clsCellProperties)  '(vFieldName A
             'read Date field value
             FieldDateType = GetCellValueWithErrorCheck(.Range(cAddrDateField + fieldRowNum)) '.Range(cAddrDateField + fieldRowNum).value
             'read exclude from export value
-            FieldExcludeFromExport = GetCellValueWithErrorCheck(.Range(cAddrExcludeFromExport + fieldRowNum)) '.Range(cAddrExcludeFromExport + fieldRowNum).value
+            FieldExportAssignment = GetCellValueWithErrorCheck(.Range(cAddrExportAssignment + fieldRowNum)) '.Range(cAddrExportAssignment + fieldRowNum).value
             'read Numeric Only value
             FieldNumericOnlyType = GetCellValueWithErrorCheck(.Range(cAddrNumericOnly + fieldRowNum)) '.Range(cAddrNumericOnly + fieldRowNum).value
             'read Misc_Settings value
@@ -231,11 +217,6 @@ Private Function EvalCellValueWithRef(cell As Range, cellProperties As clsCellPr
 'IF ({MT_Project} = "MoTrPAC", 1, 0)
 
     Dim vFormulaToValidate As String
-    
-    'for testing only
-    If cellProperties.CellAddress = "$AS$2" Or cellProperties.CellAddress = "$AS$3" Then
-        Debug.Print cellProperties.CellAddress
-    End If
     
     vFormulaToValidate = GetCellValueWithErrorCheck(cell)
         

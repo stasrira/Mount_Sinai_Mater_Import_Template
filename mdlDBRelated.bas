@@ -1,41 +1,6 @@
 Attribute VB_Name = "mdlDBRelated"
 Option Explicit
 
-Enum FormUseCases
-    FieldSettingProfile = 0
-End Enum
-
-Public popUpFormResponseIndex As Integer
-Public dictProfiles As New Dictionary
-
-Public Function SelectFieldSettingProfile() As Integer
-    
-    popUpFormResponseIndex = -1 'set the default value
-    
-    If PrepareForm(FieldSettingProfile) Then
-           
-        frmSelection.Show
-        
-        'Debug.Print frmSelection.cmbProfileList.Value
-        
-    End If
-    
-    SelectFieldSettingProfile = popUpFormResponseIndex 'this value can be overwritten in the form frmSelection, if a selection was made there
-    
-End Function
-
-Public Function PrepareForm(use_case As FormUseCases) As Boolean
-    Select Case use_case
-        Case FieldSettingProfile
-            frmSelection.Caption = "Master Template Profiles"
-'            frmSelection.Height = 193
-'            frmSelection.Width = 511
-'
-            PrepareForm = PopulateFieldSettingProfilesList(frmSelection.cmbProfileList)
-            
-    End Select
-End Function
-
 Public Function PopulateFieldSettingProfilesList(ByRef cmb As ComboBox) As Boolean
     Dim lastLoadedProfile As String
     Dim clRs As New clsSQLRecordset
@@ -57,6 +22,7 @@ Public Function PopulateFieldSettingProfilesList(ByRef cmb As ComboBox) As Boole
             
             i = 0
             dictProfiles.RemoveAll
+            cmb.Clear
             
             While Not rs.EOF
                 Set prof_details = New clsFieldSettingProfile
@@ -277,12 +243,12 @@ End Sub
 '
 'End Function
 
-Public Function SubmitManifests(Optional AvoidWarningMessage As Boolean = False)
+Public Function SubmitManifests(study_id As String, Optional AvoidWarningMessage As Boolean = False)
     Const msgTitle = "Submitting Manifest IDs"
-    Const fieldName = "MT_ManifestID"
-    Const settingName = "study_id"
+'    Const fieldName = "MT_ManifestID"
+'    Const settingName = "study_id"
     
-    Dim study_id As String, mics As String
+    Dim mics As String 'study_id As String
     Dim manifest_ids As String
     Dim user_id As String
     
@@ -313,8 +279,9 @@ Public Function SubmitManifests(Optional AvoidWarningMessage As Boolean = False)
     'get comma delimited list of Manifest IDs
     manifest_ids = Get_DisticntValuesFromField(fieldName)
     
-    'get misc settings for the ManifestID field
-    study_id = Get_MiscSettingValue(fieldName, settingName)
+    'this assigment was moved to "ExportValidateSheet" function of the mdlGeneric.
+'    'get misc settings for the ManifestID field
+'    study_id = Get_MiscSettingValue(fieldName, settingName)
     
     'get current user id
     user_id = Environ("USERDOMAIN") + "\" + Environ("Username")
