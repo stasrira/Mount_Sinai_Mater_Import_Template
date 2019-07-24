@@ -2,7 +2,7 @@ Attribute VB_Name = "mdlGeneric"
 Option Explicit
 
 Public Const cHelpTitle = "Sample Entry Validation Tool"
-Public Const cHelpVersion = "1.018"
+Public Const cHelpVersion = "1.019"
 Public Const cHelpDescription = "Questions and technical support: email to stasrirak.ms@gmail.com"
 
 Public Const cRawDataWorksheetName = "RawData"
@@ -1404,3 +1404,21 @@ err1:
         
     End With
 End Sub
+
+'Returns all values of a given column from FieldSetting sheet as an array of type string
+Public Function GetFieldSettingPropertyVal_All(colAddr As String, Optional safeDelim As String = "||") As String()
+    With Worksheets(cSettingsWorksheetName)
+        Dim rn As Range
+        Dim iRows As Integer
+        Dim val_arr() As String
+        
+        iRows = .UsedRange.Rows.Count 'number of actually used rows
+        
+        'identify range of actually used cells on the given spreadsheet for the ExportAssignment column
+        Set rn = .Range(cAddrExportAssignment & "2" & ":" & cAddrExportAssignment & iRows)
+        'concatenate all values from all cells of the range "rn" and split the recult into an array using "," as delimiter
+        val_arr = Split(Join(Application.WorksheetFunction.Transpose(rn), safeDelim), safeDelim)
+        
+        GetFieldSettingPropertyVal_All = val_arr
+    End With
+End Function

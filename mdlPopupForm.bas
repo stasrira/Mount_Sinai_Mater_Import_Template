@@ -56,8 +56,8 @@ Public Function PrepareForm(use_case As FormUseCases) As Boolean
             frmSelection.Label1.Caption = "Select the export scheme to be used"
             frmSelection.txtDesc.Visible = True
             frmSelection.txtDesc.MultiLine = True
-            frmSelection.txtDesc.Text = "The Export process supports only exporting data in comma separated value (.csv) format." _
-                                            & " Any other formats will be ignored by the system."
+            frmSelection.txtDesc.Text = "Note: The Export process supports only exporting data in comma separated value (.csv) format." _
+                                            & " Selecting any other file formats on the next screen will not honored by the system and the "".csv"" format will be used instead."
             frmSelection.txtCurProfile.Visible = False
             
             formCurrentView = "ExportAssignment"
@@ -69,52 +69,58 @@ End Function
 
 Public Function PopulateExportList(ByRef cmb As ComboBox) As Boolean
     'read all Export Assignments from Field Settings worksheet
-    With Worksheets(cSettingsWorksheetName)
-        Dim rn As Range, c As Range
-        Dim iRows As Integer
+'    With Worksheets(cSettingsWorksheetName)
+'        Dim rn As Range
+'        Dim iRows As Integer
         Dim val_arr() As String
         Dim val_out() As Variant
         Dim i As Integer
+'
+'        'Dim fieldRowNum As Integer
+'
+'        iRows = .UsedRange.Rows.Count 'number of actually used rows
+'
+'        'identify range of actually used cells on the given spreadsheet for the ExportAssignment column
+'        Set rn = .Range(cAddrExportAssignment & "2" & ":" & cAddrExportAssignment & iRows)
+'        'concatenate all values from all cells of the range "rn" and split the recult into an array using "," as delimiter
+'        val_arr = Split(Join(Application.WorksheetFunction.Transpose(rn), ","), ",")
+'    End With
+
+   'read all Export Assignments from Field Settings worksheet
+   val_arr = GetFieldSettingPropertyVal_All(cAddrExportAssignment, ",")
         
-        'Dim fieldRowNum As Integer
+    Set colExportItems = Nothing 'clear global collection
+    
+    'loop through all items of the array and add those to a collecton with the key.
+    'This will keep only unique values and raise errors for duplicates - On Error Resume Next will ignore errors
+    For Each a In val_arr
+        'replace all blank values with "Default" schema
+        If Len(Trim(a)) = 0 Then
+            a = "Default"
+        End If
+        On Error Resume Next
+        'Collections can be unique, as long as you use the second Key argument when adding items.
+        'Key values must always be unique, and adding an item with an existing Key raises an error:hence the On Error Resume Next
+        colExportItems.Add Trim(a), Trim(a)
+        On Error GoTo 0
+    Next
+            
+    'sort final collection of items and convert it back to array
+    val_out = CollectionToArray(colExportItems) 'convert final collection to an array
+    QuickSort val_out, LBound(val_out), UBound(val_out) - 1 'sort the array
+    
+    cmb.Clear
+    Set colExportItems = Nothing 'clear global collection to load sorted list from scratch
+    
+    For i = 0 To UBound(val_out) - 1
+        cmb.AddItem val_out(i)
+        colExportItems.Add val_out(i), val_out(i)
+        If val_out(i) = "Default" Then
+            cmb.ListIndex = i
+        End If
         
-        iRows = .UsedRange.Rows.Count 'number of actually used rows
-        
-        'identify range of actually used cells on the given spreadsheet for the ExportAssignment column
-        Set rn = .Range(cAddrExportAssignment & "2" & ":" & cAddrExportAssignment & iRows)
-        'concatenate all values from all cells of the range "rn" and split the recult into an array using "," as delimiter
-        val_arr = Split(Join(Application.WorksheetFunction.Transpose(rn), ","), ",")
-        
-        Set colExportItems = Nothing 'clear global collection
-        
-        'loop through all items of the array and add those to a collecton with the key.
-        'This will keep only unique values and raise errors for duplicates - On Error Resume Next will ignore errors
-        For Each a In val_arr
-            'replace all blank values with "Default" schema
-            If Len(Trim(a)) = 0 Then
-                a = "Default"
-            End If
-            On Error Resume Next
-            'Collections can be unique, as long as you use the second Key argument when adding items.
-            'Key values must always be unique, and adding an item with an existing Key raises an error:hence the On Error Resume Next
-            colExportItems.Add Trim(a), Trim(a)
-            On Error GoTo 0
-        Next
-                
-        'sort final collection of items and convert it back to array
-        val_out = CollectionToArray(colExportItems) 'convert final collection to an array
-        QuickSort val_out, LBound(val_out), UBound(val_out) - 1 'sort the array
-        
-        cmb.Clear
-        Set colExportItems = Nothing 'clear global collection to load sorted list from scratch
-        
-        For i = 0 To UBound(val_out) - 1
-            cmb.AddItem val_out(i)
-            colExportItems.Add val_out(i), val_out(i)
-            'Debug.Print (val_out(i))
-        Next
-        
-    End With
+        'Debug.Print (val_out(i))
+    Next
     
     PopulateExportList = True
     
