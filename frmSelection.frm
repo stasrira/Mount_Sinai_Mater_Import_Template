@@ -1,9 +1,9 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} frmSelection 
-   ClientHeight    =   2780
-   ClientLeft      =   -130
+   ClientHeight    =   2775
+   ClientLeft      =   -135
    ClientTop       =   -450
-   ClientWidth     =   8180
+   ClientWidth     =   8190
    OleObjectBlob   =   "frmSelection.frx":0000
    StartUpPosition =   1  'CenterOwner
 End
@@ -16,18 +16,21 @@ Option Explicit
 
 Private Sub cmbProfileList_Change()
     Dim prof_details As clsFieldSettingProfile
-    
-    Set prof_details = dictProfiles(Me.cmbProfileList.ListIndex)
-    'Debug.Print prof_details.Description, prof_details.Owner, prof_details.Name, Format(prof_details.Created, "Short Date")
-    
-    'lblProfDetails.Caption = prof_details.Name & vbCrLf & prof_details.Description & vbCrLf & "Last updated on " & Format(prof_details.Created, "Short Date")
-    txtDesc.Text = prof_details.Name & vbCrLf & prof_details.Description & vbCrLf & "Last updated on " & Format(prof_details.Created, "Short Date")
-    txtDesc.Locked = True
-    txtDesc.MultiLine = True
-    
-    txtCurProfile.Text = "Last loaded profile: " & GetConfigValue("FieldSetting_LastLoadedProfile")
-    txtCurProfile.Locked = True
-    txtCurProfile.MultiLine = True
+        
+    Select Case formCurrentView
+        Case "FieldSettingProfile"
+            Set prof_details = dictProfiles(Me.cmbProfileList.ListIndex)
+            'Debug.Print prof_details.Description, prof_details.Owner, prof_details.Name, Format(prof_details.Created, "Short Date")
+            
+            'lblProfDetails.Caption = prof_details.Name & vbCrLf & prof_details.Description & vbCrLf & "Last updated on " & Format(prof_details.Created, "Short Date")
+            txtDesc.Text = prof_details.Name & vbCrLf & prof_details.Description & vbCrLf & "Last updated on " & Format(prof_details.Created, "Short Date")
+            txtDesc.Locked = True
+            txtDesc.MultiLine = True
+            
+            txtCurProfile.Text = "Last loaded profile: " & GetConfigValue("FieldSetting_LastLoadedProfile")
+            txtCurProfile.Locked = True
+            txtCurProfile.MultiLine = True
+    End Select
     
 End Sub
 
@@ -61,6 +64,3 @@ Private Sub cmdLoad_KeyDown(ByVal KeyCode As MSForms.ReturnInteger, ByVal Shift 
     End If
 End Sub
 
-Private Sub UserForm_Click()
-
-End Sub
