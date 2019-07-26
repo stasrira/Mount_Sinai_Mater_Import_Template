@@ -29,9 +29,6 @@ Public FieldColumnNameOnRawData As String
 Private FieldSettingsFirstCell As String 'sets to "A2" during initialization of the class
 Private fieldRowNum As String 'Will hold address of the row containing the field on the FieldSettings sheet. This variable will be used from different Subs/Functions
 
-'Private Const cFieldsRange = "A2:A100" ' part of old code
-
-
 
 Public Sub InitializeValues(cellProperties As clsCellProperties)  '(vFieldName As String)
 
@@ -50,7 +47,7 @@ Public Sub InitializeValues(cellProperties As clsCellProperties)  '(vFieldName A
         Dim iRows As Integer
         'Dim fn_row As String 'Will hold address of the row containing the field
         
-        iRows = .UsedRange.Rows.Count 'number of actually used rows
+        iRows = .UsedRange.rows.Count 'number of actually used rows
         
         'identify range of actually used cells on the given spreadsheet and apply Find function
         Set fnr = .Range(FieldSettingsFirstCell & ":" & Cells(iRows, 1).Address).Find(fieldName, LookIn:=xlValues, LookAt:=xlWhole)
@@ -59,7 +56,7 @@ Public Sub InitializeValues(cellProperties As clsCellProperties)  '(vFieldName A
             DataAvailable = True 'update a flag to reflect that object can be safely used
             
             'fieldRowNum = Right(fnr.Address, Len(fnr.Address) - InStrRev(fnr.Address, "$") + 1) 'it will contain value presenting row of the record, i.e. $10
-            fieldRowNum = "$" & fnr.Row 'it will contain value presenting row of the record, i.e. $10
+            fieldRowNum = "$" & fnr.row 'it will contain value presenting row of the record, i.e. $10
             
             'Populate values for all variables
             
@@ -89,8 +86,10 @@ Public Sub InitializeValues(cellProperties As clsCellProperties)  '(vFieldName A
             'get column letter of the current field as it will be present on the Validated sheet, i.e. A, B, AA, ...
             iCols = Worksheets(cValidatedWorksheetName).UsedRange.Columns.Count
             Set r = Worksheets(cValidatedWorksheetName).Range("A1:" & Cells(1, iCols).Address)
+            On Error Resume Next
             'Address property will return value similar to $D$1; splitting it by '$' and taking element #1 to get a letter
             FieldColumnNameOnRawData = Split(r.Find(fieldName, LookIn:=xlValues).Address, "$")(1)
+            On Error GoTo 0
             
             UpdateVolatileSettings cellProperties
             
@@ -133,7 +132,7 @@ Public Sub UpdateVolatileSettings(cellProperties As clsCellProperties) ', Option
         With Worksheets(cSettingsWorksheetName)
             'read Default field value
             'Default value can be hardcoded for regular fields or retrieved through hardcoded VLookup function for dropdowns on FieldSettings sheet (the current version)
-            FieldDefaultValue = EvalCellValueWithRef(.Range(cAddrDefault + fieldRowNum), cellProperties) 'GetCellValueWithErrorCheck(.Range(cAddrDefault + fieldRowNum)) 'FieldDefaultValue = .Range(cAddrDefault + fieldRowNum).value
+            FieldDefaultValue = EvalCellValueWithRef(GetCellValueWithErrorCheck(.Range(cAddrDefault + fieldRowNum)), cellProperties) 'GetCellValueWithErrorCheck(.Range(cAddrDefault + fieldRowNum)) 'FieldDefaultValue = .Range(cAddrDefault + fieldRowNum).value
             'TODO - retrieve default for dropdown fields from the range programmatically - it will be a more generic way of getting it
 
             'read Default as boolean field value
@@ -141,22 +140,22 @@ Public Sub UpdateVolatileSettings(cellProperties As clsCellProperties) ', Option
             
             'read Required field value
             'FieldRequiredBool = ValidateBoolValue(.Range(cAddrRequired + fieldRowNum).value, cellProperties)
-            tmp = EvalCellValueWithRef(.Range(cAddrRequired + fieldRowNum), cellProperties)
+            tmp = EvalCellValueWithRef(GetCellValueWithErrorCheck(.Range(cAddrRequired + fieldRowNum)), cellProperties)
             FieldRequiredBool = CBool(IIf(Len(Trim(tmp)) = 0, False, tmp))
             tmp = ""
             'read Calculated field value
             'FieldCalculated = ValidateBoolValue(.Range(cAddrCalculated + fieldRowNum).value, cellProperties)
-            tmp = EvalCellValueWithRef(.Range(cAddrCalculated + fieldRowNum), cellProperties)
+            tmp = EvalCellValueWithRef(GetCellValueWithErrorCheck(.Range(cAddrCalculated + fieldRowNum)), cellProperties)
             FieldCalculated = CBool(IIf(Len(Trim(tmp)) = 0, False, tmp))
             tmp = ""
             'read Calculation Trigger field value
             'FieldCalcTrigger = ValidateBoolValue(.Range(cAddrCalcTrigger + fieldRowNum).value, cellProperties)
-            tmp = EvalCellValueWithRef(.Range(cAddrCalcTrigger + fieldRowNum), cellProperties)
+            tmp = EvalCellValueWithRef(GetCellValueWithErrorCheck(.Range(cAddrCalcTrigger + fieldRowNum)), cellProperties)
             FieldCalcTrigger = CBool(IIf(Len(Trim(tmp)) = 0, False, tmp))
             tmp = ""
             'read Calculation Overwrites Existing Values field value
             'FieldCalcOverwriteExistingVal = ValidateBoolValue(.Range(cAddrCalcOverwriteExistingVal + fieldRowNum).value, cellProperties)
-            tmp = EvalCellValueWithRef(.Range(cAddrCalcOverwriteExistingVal + fieldRowNum), cellProperties)
+            tmp = EvalCellValueWithRef(GetCellValueWithErrorCheck(.Range(cAddrCalcOverwriteExistingVal + fieldRowNum)), cellProperties)
             FieldCalcOverwriteExistingVal = CBool(IIf(Len(Trim(tmp)) = 0, False, tmp))
             tmp = ""
         End With
@@ -213,12 +212,12 @@ End Function
 
 'this function identifies if other fields are referenced in cell value (of Field Settings tab) that is being evaluated. If it is, it will assume that any strings in curve parenthesis are field names
 'and will attempt to get corresponded names. For example, {Project_Id} will be assumed a Project_Id column and value of this field corresponded to the current row will be retreived.
-Private Function EvalCellValueWithRef(cell As Range, cellProperties As clsCellProperties)
+Public Function EvalCellValueWithRef(vFormulaToValidate As String, cellProperties As clsCellProperties, Optional worksheetToValidate As String = "") As String
 'IF ({MT_Project} = "MoTrPAC", 1, 0)
 
-    Dim vFormulaToValidate As String
+    'Dim vFormulaToValidate As String
     
-    vFormulaToValidate = GetCellValueWithErrorCheck(cell)
+    'vFormulaToValidate = GetCellValueWithErrorCheck(cell)
         
     If Len(vFormulaToValidate) > 0 Then
         'if passed value is not empty, try to validate it
@@ -250,8 +249,12 @@ Private Function EvalCellValueWithRef(cell As Range, cellProperties As clsCellPr
 '            str = CStr(str) '"""" + str + """"
         End If
         
+        If Len(Trim(worksheetToValidate)) = 0 Then
+            worksheetToValidate = cValidatedWorksheetName
+        End If
+        
         'Evaluate value of the formula
-        With Worksheets(cValidatedWorksheetName)
+        With Worksheets(worksheetToValidate)
             If Not IsError(.Evaluate(str)) Then
                 EvalCellValueWithRef = .Evaluate(str)
             Else

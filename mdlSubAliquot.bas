@@ -1,11 +1,22 @@
 Attribute VB_Name = "mdlSubAliquot"
 Option Explicit
 
-Public Function CreateSubAliquots(Optional inRowNum As Integer = 1, Optional ByRef tRng As Range = Nothing, Optional updateWholeSheet As Boolean = False) As Range
+Public Function CreateSubAliquots(Optional ByRef tRng As Range = Nothing, _
+                                    Optional updateWholeSheet As Boolean = False, _
+                                    Optional showConfirmMsg As Boolean = True) As Range
+
+    Const cMsgBoxTitle = "Create Sub-Aliquots"
+    
     Dim r As Range, rfs As Range
     Dim i As Integer, cnt As Integer
-    Dim fstCell As String, lstCell As String
+    Dim fstCell As String, lstCell As String, lstUsedRngCell As String
+    Dim lstUsedRngRow As Integer
     Dim wks As Worksheet
+    Dim iResponse As Integer, inRowNum As Integer
+    Dim fs As clsFieldSettings
+    Dim cellProperties As clsCellProperties
+    Dim field As Range, r1 As Range, colAutoFill As Collection, af As Variant
+    
     
     If tRng Is Nothing Then
         Set tRng = Selection
@@ -13,16 +24,87 @@ Public Function CreateSubAliquots(Optional inRowNum As Integer = 1, Optional ByR
         
     Set wks = tRng.Worksheet
     
+    If wks.Name <> cRawDataWorksheetName Then
+        'MsgBox "Sub-Aliquots can be created only on the ""RawData"" worksheet. Please switch to ""RawData"" and try to run this operatoin again from there.", vbCritical, cMsgBoxTitle
+        Set CreateSubAliquots = Nothing
+        Exit Function
+    End If
+    
     If updateWholeSheet Then
         Set tRng = wks.UsedRange
     End If
-        
-    fstCell = wks.Cells(tRng.row, 1).Address
-    lstCell = wks.Cells(tRng.row + tRng.rows.Count - 1, wks.UsedRange.Columns.Count).Address
-    'Set tRng = wks.Range(wks.Cells(tRng.row, 1), wks.Cells(tRng.row + tRng.rows.Count - 1, wks.UsedRange.Columns.Count))
-    Set tRng = wks.Range(fstCell, lstCell)
-
     
+    'get last row of the used range of cells on the current worksheet
+    lstUsedRngCell = Split(wks.UsedRange.Address, ":")(1)
+    lstUsedRngRow = Split(lstUsedRngCell, "$")(2)
+    
+    'Check that target range does not include field captions (first row)
+    If Split(wks.Cells(tRng.row, 1).Address, "$")(2) = "1" Then
+        If tRng.rows.Count > 1 And lstUsedRngRow > 1 Then
+            'if requested target range has more than 1 row and
+            'used range of the sheet has more than 1 row,
+            'offset start position to one row down
+            fstCell = wks.Cells(tRng.row, 1).Offset(1).Address
+        Else
+            'if target range has only 1 row (meaning that only the title row was selected) or used range consists of first row only, abort the operation
+            MsgBox "Sub-Aliquots cannot be created for the captions row (first row of the worksheet). Select any other populated row to proceed.", vbCritical, cMsgBoxTitle
+            Set CreateSubAliquots = Nothing
+            Exit Function
+        End If
+    Else
+        fstCell = wks.Cells(tRng.row, 1).Address
+    End If
+    
+    'verify that the start of the region to be used for sub-aliquoting is not out of the used range of cells on the worksheet
+    If Split(fstCell, "$")(2) > lstUsedRngRow Then
+        'start of the region is outside of the used range, about operation
+        MsgBox "Sub-Aliquots cannot be created for not populated rows. Select any populated row (except the first caption row) to proceed.", vbCritical, cMsgBoxTitle
+        Exit Function
+    End If
+    
+    lstCell = wks.Cells(tRng.row + tRng.rows.Count - 1, wks.UsedRange.Columns.Count).Address
+    
+    'verify that the end of the region to be used for sub-aliquoting is not out of the used range of cells on the worksheet
+    If Split(lstCell, "$")(2) > lstUsedRngRow Then
+        'end of the provided target range is outside of the used range on the worksheet
+        lstCell = lstUsedRngCell
+    End If
+    
+    're-set target range that will be used to create sub-aliqouts
+    Set tRng = wks.Range(fstCell, lstCell)
+    
+    
+    'get config settings for sub-aliquot processing
+    Set fs = GetFieldSettingsInstance(Nothing, False, cConfigFieldPrefix & "SubALiquot")
+
+    Dim jVal As Dictionary, jNode As Variant, sn As Variant, jsonStr As String, updFields As Variant
+    jsonStr = fs.FieldMiscSettings '"{'Process':'sub-aliquot','SubAliquotNumber':6,'UpdateFields':[{'Field':'MT_Sample ID','Update':1,'UpdateOriginal':'{MT_Sample ID}_0','AutoFill':1},{'Field':'MT_Vessel ID','Update':1,'UpdateOriginal':'{MT_Vessel ID}_10','AutoFill':0}]}"
+    Set jVal = ParseJson(jsonStr)
+
+    If jVal.Exists("SubAliquotNumber") Then
+        inRowNum = jVal("SubAliquotNumber")
+    End If
+
+    If jVal.Exists("UpdateFields") Then
+        Set updFields = jVal("UpdateFields")
+
+'        For Each jNode In updFields
+'            Debug.Print jNode("AutoFill"), jNode("UpdateOriginal"), jNode("Field")
+'        Next
+    End If
+ 
+    'Confirm that user want to proceed with sub-aliquot creation
+    tRng.EntireRow.Select
+    
+    iResponse = MsgBox("Creating sub-aliquots process is about to start. The system will create " & CStr(inRowNum) & " sub-aliqout(s) for the selected row(s)." & _
+                        vbCrLf & vbCrLf & "Do you want to proceed? If not, click 'Cancel'.", _
+                        vbOKCancel, cMsgBoxTitle)
+    
+    If iResponse <> vbOK Then
+        Set CreateSubAliquots = Nothing
+        Exit Function
+    End If
+
     If inRowNum > 0 Then
         'count of rows in the target range
         cnt = tRng.rows.Count 'Columns(1).Cells.Count
@@ -36,17 +118,38 @@ Public Function CreateSubAliquots(Optional inRowNum As Integer = 1, Optional ByR
                 Set r = r.Offset(1, 0)
             End If
             
+            Set colAutoFill = New Collection
+            
+            For Each jNode In updFields
+                Debug.Print jNode("AutoFill"), jNode("UpdateOriginal"), jNode("Field")
+                
+                Set cellProperties = New clsCellProperties
+                
+                Set r1 = wks.Range("A1", wks.Cells(1, wks.UsedRange.Columns.Count))
+                Set field = r1.Find(jNode("Field"), LookIn:=xlValues, LookAt:=xlWhole).Offset(r.row - 1)
+                If Not field Is Nothing Then
+                    cellProperties.InitializeValues field.Address
+                    field.value = fs.EvalCellValueWithRef(CStr(jNode("UpdateOriginal")), cellProperties, cRawDataWorksheetName)
+                    If CStr(jNode("AutoFill")) = "1" Then
+                        colAutoFill.Add field.Column
+                    End If
+                End If
+            Next
+            
             'TODO: here should be a call to a procedure that will update some cells of the row whichi is the source for creating sub-aliquots
             'this is just for testing update first cells of the columns that will be autofill afterwords
-            wks.Cells(r.row, 2).value = wks.Cells(r.row, 2).value & "_0"
-            wks.Cells(r.row, 4).value = wks.Cells(r.row, 4).value & "_0"
+            'wks.Cells(r.row, 2).value = wks.Cells(r.row, 2).value & "_0"
+            'wks.Cells(r.row, 4).value = wks.Cells(r.row, 4).value & "_0"
             
             'create sub-aliquots and return range of the affected cells
             Set rfs = InsertSubAliquotsPerRow(r, inRowNum)
             
+            For Each af In colAutoFill
+                AutoFillColumn rfs, CInt(af)
+            Next
             'call autofill procedure passing there range of the sub-aliquots and the column number (of the range) where first cell of the column will be used to autofill rest of the cells of the column
-            AutoFillColumn rfs, 2
-            AutoFillColumn rfs, 4
+            'AutoFillColumn rfs, 2
+            'AutoFillColumn rfs, 4
             
         Next
         'lstCell = r.Address
@@ -55,8 +158,12 @@ Public Function CreateSubAliquots(Optional inRowNum As Integer = 1, Optional ByR
     
 
     Set r = wks.Range(fstCell, lstCell)
-    Debug.Print r.Address
+    'Debug.Print r.Address
     r.EntireRow.Select
+    
+    If showConfirmMsg Then
+        MsgBox "Sub-aliqouts were successfully created. Affected rows are highlighted.", vbInformation, cMsgBoxTitle
+    End If
     
     Set CreateSubAliquots = r
 End Function
