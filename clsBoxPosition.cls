@@ -23,13 +23,13 @@ Public Sub SplitScannedLocationToPositions(ScanLocation As String)
     
     Set regMatches = ApplyRegExToStr(ScanLocation, "\D{1,}") ' Get letter part of the scanned location ==> if location is "A01", this will get "A"
     For Each match In regMatches
-        Row_p4 = match.Value
+        Row_p4 = match.value
         Exit For
     Next
     
     Set regMatches = ApplyRegExToStr(ScanLocation, "\d{1,}") ' Get letter part of the scanned location ==> if location is "A01", this will get "01"
     For Each match In regMatches
-        Column_p5 = match.Value
+        Column_p5 = match.value
         Exit For
     Next
 End Sub

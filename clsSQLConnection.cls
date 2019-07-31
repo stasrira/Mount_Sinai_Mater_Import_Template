@@ -51,7 +51,7 @@ Public Function OpenConnection(Optional strConn As String = "") As ADODB.Connect
     
 clean_up:
     ' Clean up
-    If CBool(conn.State And adStateOpen) Then conn.Close
+    If CBool(conn.state And adStateOpen) Then conn.Close
     Set conn = Nothing
     
     Set OpenConnection = Nothing
@@ -79,7 +79,7 @@ End Sub
 Private Sub Class_Terminate()
     'Clean up
     If Not conn Is Nothing Then
-        If CBool(conn.State And adStateOpen) Then conn.Close
+        If CBool(conn.state And adStateOpen) Then conn.Close
         Set conn = Nothing
     End If
 End Sub

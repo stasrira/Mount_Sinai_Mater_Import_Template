@@ -30,8 +30,8 @@ Private Function GetColumnToEvaluate(ByVal Target As Range _
         Set rCol = Target.Columns(i)
         If rCol.Cells(1).Column = columnNum_toEval Then 'identify range of cells belonging to the needed column number
             If avoidFirstRow Then 'check if avoid udpating first cell is set to True
-                If rCol.Cells(1).Row = 1 Then 'check if the range includes the first row
-                    If rCol.Rows.Count > 1 Then 'check if range contains more than one row
+                If rCol.Cells(1).row = 1 Then 'check if the range includes the first row
+                    If rCol.rows.Count > 1 Then 'check if range contains more than one row
                         Set rCol = rCol.Offset(1, 0).Resize(rCol.Cells.Count - 1) 'shift range down by one row and decrease size by one row as well
                     Else
                         Set rCol = Nothing 'current range contains just one cell located in the header, abourt operation
@@ -92,8 +92,8 @@ Public Sub UpdatePositionValues_old(ByVal Target As Range, Optional row_OffSetVa
     With Target.Worksheet
         For Each c In Target
             If Len(Trim(c.value)) > 0 Then
-                c.Offset(0, row_OffSetValue).value = IIf((c.Row - 1) Mod 8 = 0, Chr(72), Chr(72 - 8 + ((c.Row - 1) Mod 8)))
-                c.Offset(0, col_OffSetValue).value = GetWellColumn_For96Well(c.Row - 1)
+                c.Offset(0, row_OffSetValue).value = IIf((c.row - 1) Mod 8 = 0, Chr(72), Chr(72 - 8 + ((c.row - 1) Mod 8)))
+                c.Offset(0, col_OffSetValue).value = GetWellColumn_For96Well(c.row - 1)
             Else
                 c.Offset(0, row_OffSetValue).value = ""
                 c.Offset(0, col_OffSetValue).value = ""

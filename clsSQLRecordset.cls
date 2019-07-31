@@ -42,7 +42,7 @@ Public Function GetRecordset(sqlStatement As String, Optional strConn As String 
 clean_up:
     ' Clean up
     If Not conn Is Nothing Then
-        If CBool(conn.State And adStateOpen) Then conn.Close
+        If CBool(conn.state And adStateOpen) Then conn.Close
         Set conn = Nothing
     End If
     Set clsConn = Nothing

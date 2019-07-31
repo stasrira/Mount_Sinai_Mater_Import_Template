@@ -43,6 +43,7 @@ Public Function PrepareForm(use_case As FormUseCases) As Boolean
         Case FieldSettingProfile
             frmSelection.Caption = "Master Template Profiles"
             frmSelection.cmdLoad.Caption = "Load"
+            frmSelection.cmdLoad.SetFocus
             frmSelection.Label1.Caption = "Select a profile to be loaded"
             frmSelection.txtDesc.Visible = True
             frmSelection.txtCurProfile.Visible = True
@@ -53,11 +54,15 @@ Public Function PrepareForm(use_case As FormUseCases) As Boolean
         Case ExportAssignmentSelection
             frmSelection.Caption = "Master Template Exports"
             frmSelection.cmdLoad.Caption = "Select"
+            frmSelection.cmdLoad.SetFocus
             frmSelection.Label1.Caption = "Select the export scheme to be used"
             frmSelection.txtDesc.Visible = True
             frmSelection.txtDesc.MultiLine = True
-            frmSelection.txtDesc.Text = "Note: The Export process supports only exporting data in comma separated value (.csv) format." _
-                                            & " Selecting any other file formats on the next screen will not honored by the system and the "".csv"" format will be used instead."
+            frmSelection.txtDesc.Text = "Note: Default export format for profiles is comma separated value (.csv). " _
+                & "This format will be forced for all profiles, except special cases when profile specific conditions are " _
+                & "provided through the configuration field ""##//Export""."
+'            frmSelection.txtDesc.Text = "Note: The Export process supports only exporting data in comma separated value (.csv) format." _
+'                                            & " Selecting any other file formats on the next screen will not honored by the system and the "".csv"" format will be used instead."
             frmSelection.txtCurProfile.Visible = False
             
             formCurrentView = "ExportAssignment"

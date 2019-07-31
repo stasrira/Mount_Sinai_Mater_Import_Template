@@ -7,7 +7,7 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = True
-Private bVoidDropdownChangeEvent As Boolean
+'Private bVoidDropdownChangeEvent As Boolean
 
 Private Sub Worksheet_Activate()
     If bFieldHeadersWereSynced Then

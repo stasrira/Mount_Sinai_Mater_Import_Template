@@ -1,9 +1,14 @@
 Attribute VB_Name = "mdlSubAliquot"
 Option Explicit
 
+Public Sub CreateSubAliquotsAll()
+    CreateSubAliquots , True
+End Sub
+
 Public Function CreateSubAliquots(Optional ByRef tRng As Range = Nothing, _
                                     Optional updateWholeSheet As Boolean = False, _
-                                    Optional showConfirmMsg As Boolean = True) As Range
+                                    Optional showConfirmMsg As Boolean = True, _
+                                    Optional showValidateMsg As Boolean = True) As Range
 
     Const cMsgBoxTitle = "Create Sub-Aliquots"
     
@@ -16,7 +21,8 @@ Public Function CreateSubAliquots(Optional ByRef tRng As Range = Nothing, _
     Dim fs As clsFieldSettings
     Dim cellProperties As clsCellProperties
     Dim field As Range, r1 As Range, colAutoFill As Collection, af As Variant
-    
+    Dim jVal As Dictionary, jNode As Variant, sn As Variant, jsonStr As String, updFields As Variant
+    Dim msg_alert As String
     
     If tRng Is Nothing Then
         Set tRng = Selection
@@ -77,26 +83,37 @@ Public Function CreateSubAliquots(Optional ByRef tRng As Range = Nothing, _
     'get config settings for sub-aliquot processing
     Set fs = GetFieldSettingsInstance(Nothing, False, cConfigFieldPrefix & "SubALiquot")
 
-    Dim jVal As Dictionary, jNode As Variant, sn As Variant, jsonStr As String, updFields As Variant
-    jsonStr = fs.FieldMiscSettings '"{'Process':'sub-aliquot','SubAliquotNumber':6,'UpdateFields':[{'Field':'MT_Sample ID','Update':1,'UpdateOriginal':'{MT_Sample ID}_0','AutoFill':1},{'Field':'MT_Vessel ID','Update':1,'UpdateOriginal':'{MT_Vessel ID}_10','AutoFill':0}]}"
-    Set jVal = ParseJson(jsonStr)
-
-    If jVal.Exists("SubAliquotNumber") Then
-        inRowNum = jVal("SubAliquotNumber")
+    If fs.DataAvailable Then
+        
+        msg_alert = ""
+        
+        jsonStr = fs.FieldMiscSettings '"{'Process':'sub-aliquot','SubAliquotNumber':6,'UpdateFields':[{'Field':'MT_Sample ID','Update':1,'UpdateOriginal':'{MT_Sample ID}_0','AutoFill':1},{'Field':'MT_Vessel ID','Update':1,'UpdateOriginal':'{MT_Vessel ID}_10','AutoFill':0}]}"
+        Set jVal = ParseJson(jsonStr)
+    
+        If jVal.Exists("SubAliquotNumber") Then
+            inRowNum = jVal("SubAliquotNumber")
+        End If
+    
+        If jVal.Exists("UpdateFields") Then
+            Set updFields = jVal("UpdateFields")
+    
+    '        For Each jNode In updFields
+    '            Debug.Print jNode("AutoFill"), jNode("UpdateOriginal"), jNode("Field")
+    '        Next
+        End If
+    Else
+        msg_alert = "Warning: Currently loaded profile has no sub-aliquot instructions specified and thus a default sub-aliquot processing will be applied!" _
+                    & " Cancel the operation if you do not want to proceed." _
+                    & vbCrLf & vbCrLf
+        inRowNum = 1
+        Set updFields = Nothing
     End If
-
-    If jVal.Exists("UpdateFields") Then
-        Set updFields = jVal("UpdateFields")
-
-'        For Each jNode In updFields
-'            Debug.Print jNode("AutoFill"), jNode("UpdateOriginal"), jNode("Field")
-'        Next
-    End If
- 
+    
     'Confirm that user want to proceed with sub-aliquot creation
     tRng.EntireRow.Select
     
-    iResponse = MsgBox("Creating sub-aliquots process is about to start. The system will create " & CStr(inRowNum) & " sub-aliqout(s) for the selected row(s)." & _
+    iResponse = MsgBox(msg_alert & _
+                        "Creating sub-aliquots process is about to start. The system will create " & CStr(inRowNum) & " sub-aliqout(s) for each of the selected row(s)." & _
                         vbCrLf & vbCrLf & "Do you want to proceed? If not, click 'Cancel'.", _
                         vbOKCancel, cMsgBoxTitle)
     
@@ -120,26 +137,25 @@ Public Function CreateSubAliquots(Optional ByRef tRng As Range = Nothing, _
             
             Set colAutoFill = New Collection
             
-            For Each jNode In updFields
-                Debug.Print jNode("AutoFill"), jNode("UpdateOriginal"), jNode("Field")
-                
-                Set cellProperties = New clsCellProperties
-                
-                Set r1 = wks.Range("A1", wks.Cells(1, wks.UsedRange.Columns.Count))
-                Set field = r1.Find(jNode("Field"), LookIn:=xlValues, LookAt:=xlWhole).Offset(r.row - 1)
-                If Not field Is Nothing Then
-                    cellProperties.InitializeValues field.Address
-                    field.value = fs.EvalCellValueWithRef(CStr(jNode("UpdateOriginal")), cellProperties, cRawDataWorksheetName)
-                    If CStr(jNode("AutoFill")) = "1" Then
-                        colAutoFill.Add field.Column
-                    End If
-                End If
-            Next
+            If Not updFields Is Nothing Then
             
-            'TODO: here should be a call to a procedure that will update some cells of the row whichi is the source for creating sub-aliquots
-            'this is just for testing update first cells of the columns that will be autofill afterwords
-            'wks.Cells(r.row, 2).value = wks.Cells(r.row, 2).value & "_0"
-            'wks.Cells(r.row, 4).value = wks.Cells(r.row, 4).value & "_0"
+                For Each jNode In updFields
+    '                Debug.Print jNode("AutoFill"), jNode("UpdateOriginal"), jNode("Field")
+                    
+                    Set cellProperties = New clsCellProperties
+                    
+                    Set r1 = wks.Range("A1", wks.Cells(1, wks.UsedRange.Columns.Count))
+                    Set field = r1.Find(jNode("Field"), LookIn:=xlValues, LookAt:=xlWhole).Offset(r.row - 1)
+                    If Not field Is Nothing Then
+                        cellProperties.InitializeValues field.Address
+                        field.value = fs.EvalCellValueWithRef(CStr(jNode("UpdateOriginal")), cellProperties, cRawDataWorksheetName)
+                        If CStr(jNode("AutoFill")) = "1" Then
+                            colAutoFill.Add field.Column
+                        End If
+                    End If
+                Next
+                
+            End If
             
             'create sub-aliquots and return range of the affected cells
             Set rfs = InsertSubAliquotsPerRow(r, inRowNum)
@@ -163,6 +179,17 @@ Public Function CreateSubAliquots(Optional ByRef tRng As Range = Nothing, _
     
     If showConfirmMsg Then
         MsgBox "Sub-aliqouts were successfully created. Affected rows are highlighted.", vbInformation, cMsgBoxTitle
+    End If
+    
+    If showValidateMsg Then
+        iResponse = MsgBox("Do you want to proceed with ""Validate RawData Sheet"" operation? This will validate all created sub-aliquot entries." & _
+                            vbCrLf & vbCrLf & "If you do not want to proceed, click 'Cancel'.", _
+                            vbOKCancel, cMsgBoxTitle)
+        
+        If iResponse = vbOK Then
+            ValidateWholeWorksheet
+        End If
+    
     End If
     
     Set CreateSubAliquots = r

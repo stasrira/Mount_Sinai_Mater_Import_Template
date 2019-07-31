@@ -212,12 +212,14 @@ End Function
 
 'this function identifies if other fields are referenced in cell value (of Field Settings tab) that is being evaluated. If it is, it will assume that any strings in curve parenthesis are field names
 'and will attempt to get corresponded names. For example, {Project_Id} will be assumed a Project_Id column and value of this field corresponded to the current row will be retreived.
-Public Function EvalCellValueWithRef(vFormulaToValidate As String, cellProperties As clsCellProperties, Optional worksheetToValidate As String = "") As String
+Public Function EvalCellValueWithRef(vFormulaToValidate As String, _
+                                        cellProperties As clsCellProperties, _
+                                        Optional worksheetToValidate As String = "") As String
 'IF ({MT_Project} = "MoTrPAC", 1, 0)
 
-    'Dim vFormulaToValidate As String
-    
-    'vFormulaToValidate = GetCellValueWithErrorCheck(cell)
+    If Len(Trim(worksheetToValidate)) = 0 Then
+        worksheetToValidate = cValidatedWorksheetName
+    End If
         
     If Len(vFormulaToValidate) > 0 Then
         'if passed value is not empty, try to validate it
@@ -242,21 +244,19 @@ Public Function EvalCellValueWithRef(vFormulaToValidate As String, cellPropertie
                  
             For Each match In matches
               'Debug.Print match.value '{MT_Project}
-              str = Replace(str, match.value, FindFieldValue(match.value, cellProperties))
+              str = Replace(str, match.value, FindFieldValue(match.value, cellProperties, worksheetToValidate))
               'str = Replace(str, match.value, FindFieldAddress(match.value, cellProperties.cellRow))
             Next match
 '        Else
 '            str = CStr(str) '"""" + str + """"
         End If
         
-        If Len(Trim(worksheetToValidate)) = 0 Then
-            worksheetToValidate = cValidatedWorksheetName
-        End If
-        
         'Evaluate value of the formula
         With Worksheets(worksheetToValidate)
             If Not IsError(.Evaluate(str)) Then
+                On Error Resume Next
                 EvalCellValueWithRef = .Evaluate(str)
+                On Error GoTo 0
             Else
                 EvalCellValueWithRef = str
             End If
@@ -269,14 +269,20 @@ Public Function EvalCellValueWithRef(vFormulaToValidate As String, cellPropertie
 End Function
 
 'This function will return the actual value of the requested field. It will use the cellProperties object to identify the correct row to be used
-Private Function FindFieldValue(fieldName As String, cellProperties As clsCellProperties) As String
+Private Function FindFieldValue(fieldName As String, _
+                                cellProperties As clsCellProperties, _
+                                Optional targetWorksheet As String = "") As String
     'fieldName example: {MT_Project}
     'The following is using HLOOKUP function to find needed value - i.e. HLOOKUP("MT_Project", A1:Z100,4, FALSE)
     On Error Resume Next 'this is required to avoid run time errors, if HLookup cannot find a needed value
     
+    If Len(Trim(targetWorksheet)) = 0 Then
+        targetWorksheet = cValidatedWorksheetName
+    End If
+    
     fieldName = Replace(Replace(fieldName, "{", ""), "}", "") 'remove figure brackets from the name
     
-    With Worksheets(cValidatedWorksheetName)
+    With Worksheets(targetWorksheet) '(cValidatedWorksheetName)
         Dim r As Variant, ur_addr As String
         r = Split(.UsedRange.Address, "$") ' identify used range on the sheet, i.e. $A$1:$AT$30 and split it to an array
         r(UBound(r)) = cellProperties.cellRow 'update row number of the last column of the range with the row number of the cell being used

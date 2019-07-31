@@ -157,15 +157,8 @@ Public Sub Validate_Cell_Value(ByVal Target As Range)
             'Set dictValidationResults(obValidationResult.ValidatedCellProperties.CellAddress) = obValidationResult
         End If
         
-        
-        'OLD code
-    '    'If obInput.ValidationErrors.ErrorCount > 0 Then
-    '    If obValidationResult.ValidationErrors.ErrorCount > 0 Then
-    '        MsgBox obValidationResult.ValidationErrors.toString, vbOKOnly, "Validation Error"
-    '    End If
-        
-        'update target cell with the validated value
-        obInput.UpdateValidatedCell
+        'update target cell with the validated value on the Validated sheet;
+        obInput.UpdateValidatedCell False, obValidationResult.ValidationStatus
         
     End If
     
@@ -348,11 +341,13 @@ Public Sub ExportValidateSheet()
     Dim xPath As String, xWs As Worksheet
     Dim fileName As String, strResp As String
     Dim dirExists As Boolean, OFSO As FileSystemObject, fileFormat As Integer
+    Dim strCfgVal As String, wsName As String
     Dim fDialog As FileDialog, result As Integer, iTempCount As Integer
     Dim bManifests As Boolean, iResponse As Integer
     Dim oFieldSettings As clsFieldSettings
     Dim sExportAssignment As String
     Dim mnf_study_id As String 'will hold study_id value for submission (if applicable) of the Manifest ID field
+    Dim rng As Range
     
     Application.ScreenUpdating = False
     Application.DisplayAlerts = False
@@ -365,8 +360,28 @@ Public Sub ExportValidateSheet()
     For Each xWs In ThisWorkbook.Sheets
         If xWs.Name = cValidatedWorksheetName Then 'identify Validated worksheet
         
-            xPath = Application.ActiveWorkbook.Path
-            fileName = xPath & "\" & xWs.Name & "_" & Format(Now(), "mmddyyyy_HHMMSS") & ".csv" 'xPath & "\" &
+            'xPath = Application.ActiveWorkbook.Path
+'            fileName = xPath & "\" & xWs.Name & "_" & Format(Now(), "mmddyyyy_HHMMSS") ' & ".csv"
+            fileName = Format(Now(), "yyyymmdd_HHMMSS") & "_" & xWs.Name
+            
+            'get config settings for exporting process
+            Set oFieldSettings = GetFieldSettingsInstance(Nothing, False, cConfigFieldPrefix & "Export")
+            If oFieldSettings.DataAvailable Then
+                'get export file name and file format
+                strCfgVal = Get_MiscSettingValue(cConfigFieldPrefix & "Export", "FileName")
+                If Len(Trim(strCfgVal)) > 0 Then
+                    fileName = Replace(strCfgVal, "|datestamp|", Format(Now(), "yyyymmdd_HHMMSS"))
+                End If
+                strCfgVal = Get_MiscSettingValue(cConfigFieldPrefix & "Export", "worksheetName")
+                If Len(Trim(strCfgVal)) > 0 Then
+                    wsName = strCfgVal
+                End If
+                strCfgVal = Get_MiscSettingValue(cConfigFieldPrefix & "Export", "FileFormat")
+                If IsNumeric(strCfgVal) Then
+                    fileFormat = CInt(strCfgVal)
+                End If
+            End If
+            Set oFieldSettings = Nothing
             
             Set fDialog = Application.FileDialog(msoFileDialogSaveAs)
              
@@ -383,10 +398,20 @@ ShowDialog:
             result = fDialog.Show
              
             If result = -1 Then
-'                'allow only .csv and tab delimited (.txt) files to go through
-                'force CSV format.
-                fileName = Left(fDialog.SelectedItems(1), InStrRev(fDialog.SelectedItems(1), ".")) & "csv" ' this will replace any selected extension with "csv"
-                fileFormat = 6 'force csv file format
+                Select Case fileFormat
+                    Case 0, 6 'fileFormat = 0 is a default case, force it to be csv
+                        fileName = Left(fDialog.SelectedItems(1), InStrRev(fDialog.SelectedItems(1), ".")) & "csv" ' this will replace any selected extension with "csv"
+                        fileFormat = 6 'force csv file format
+                    Case Else 'force any other cases to be xlsx
+                        fileName = Left(fDialog.SelectedItems(1), InStrRev(fDialog.SelectedItems(1), ".")) & "xlsx" ' this will replace any selected extension with "csv"
+                        fileFormat = 51 'force xlsx file format
+                End Select
+                'if file format was not specified through configuration, force csv format as default
+'                If fileFormat = 0 Then
+'                    'force CSV format.
+'                    fileName = Left(fDialog.SelectedItems(1), InStrRev(fDialog.SelectedItems(1), ".")) & "csv" ' this will replace any selected extension with "csv"
+'                    fileFormat = 6 'force csv file format
+'                End If
                                     
                 If fileName <> "" Then
                     'check if the folder exists
@@ -399,11 +424,20 @@ ShowDialog:
                         'copy Validated sheet data to memory
                         xWs.Cells.Copy
                         
+                        'Set rng = xWs.UsedRange 'not in use, an alternative approach
+                        
                         'create a temp sheet to hold export data. This sheet won't have any code behind. This is needed to prevent copying VBA code to the exported file
                         Dim tempSheetName As String
-                        tempSheetName = "ExportValidated_" & Format(Now(), "yyyymmdd_HHMMSS") 'temp sheet name
+                        If Len(Trim(wsName)) = 0 Then
+                            wsName = "ExportValidated"
+                        End If
+                        tempSheetName = Replace(wsName, " ", "") & "_" & Format(Now(), "yyyymmdd_HHMMSS") 'temp sheet name; it has to be unique to make sure it is different from existing sheets
                         ThisWorkbook.Sheets.Add.Name = tempSheetName 'add the new temp sheet
-                        ThisWorkbook.Sheets(tempSheetName).Cells.PasteSpecial Paste:=xlPasteAll 'copy all data from memory to the created sheet
+                        
+                        'not in use, an alternative approach
+                        'ThisWorkbook.Sheets(tempSheetName).Range("A1").Resize(rng.rows.Count, rng.Columns.Count).Cells.value = rng.Cells.value
+                        
+                        ThisWorkbook.Sheets(tempSheetName).Cells.PasteSpecial Paste:=xlPasteValues 'copy all data from memory to the created sheet 'xlPasteAll
                         
                         'delete columns that should be excluded from the export
                         RemoveColumnsExcludedFromExport ThisWorkbook.Sheets(tempSheetName), xWs, sExportAssignment
@@ -1028,6 +1062,7 @@ Public Sub LoadCustomMenus()
     Dim cmbControl As CommandBarControl
     Dim cmbSettings As CommandBarControl
     Dim cmbDBLink As CommandBarControl
+    Dim cmbSpecialOps As CommandBarControl
     
     'add custom menus to Add-In ribon of Excel
     Set cmbBar = Application.CommandBars("Worksheet Menu Bar")
@@ -1081,7 +1116,24 @@ Public Sub LoadCustomMenus()
             .OnAction = "FBS_Scan"
             .FaceId = 485 '18
         End With
-         
+        
+        
+        'create sub menu "Special Operations"
+        Set cmbSpecialOps = .Controls.Add(Type:=msoControlPopup, Temporary:=True)
+        With cmbSpecialOps
+            .Caption = "Special Operations"
+                With .Controls.Add(Type:=msoControlButton)
+                .Caption = "Create Sub-Aliquots (for selected rows)"
+                .OnAction = "CreateSubAliquots"
+                .FaceId = 485 '18
+            End With
+            With .Controls.Add(Type:=msoControlButton)
+                .Caption = "Create Sub-Aliquots (for all rows)"
+                .OnAction = "CreateSubAliquotsAll"
+                .FaceId = 485 '18
+            End With
+        End With
+        
         'create sub menu "DB Link"
         Set cmbDBLink = .Controls.Add(Type:=msoControlPopup, Temporary:=True)
         With cmbDBLink
@@ -1438,4 +1490,25 @@ Public Function GetFieldSettingPropertyVal_All(colAddr As String, Optional safeD
         
         GetFieldSettingPropertyVal_All = val_arr
     End With
+End Function
+
+Public Function GetSplitVal(strToSplit As String, delim As String, member_num As Integer) As String
+    Dim arr() As String
+    
+    arr = Split(strToSplit, delim)
+    If UBound(arr) >= member_num Then
+        GetSplitVal = arr(member_num)
+    Else
+        GetSplitVal = ""
+    End If
+    
+End Function
+
+Public Function GetRowNum() As Integer 'cellAddr As String, Optional curWks As String = "") As Integer
+'    If Len(Trim(curWks)) = 0 Then
+'        curWks = cRawDataWorksheetName
+'    End If
+'
+'    GetRowNum = Worksheets(curWks).Range(cellAddr).row
+    GetRowNum = 45
 End Function

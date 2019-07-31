@@ -34,7 +34,7 @@ Public Function VaildateValue(vFieldValue As String)
     
     With Worksheets(cDictionayWorksheetName)
         If Not IsError(Application.match(vFieldValue, .Range(strDropdownLookupRange).Columns(1), 0)) Then
-            Set rRng = .Range(.Range(strDropdownLookupRange).Cells(1), .Range(strDropdownLookupRange).Cells(.Range(strDropdownLookupRange).Rows.Count).Offset(0, 2))
+            Set rRng = .Range(.Range(strDropdownLookupRange).Cells(1), .Range(strDropdownLookupRange).Cells(.Range(strDropdownLookupRange).rows.Count).Offset(0, 2))
             VaildateValue = Application.WorksheetFunction.VLookup(vFieldValue, rRng, 3, False)
             'VaildateValue = Application.WorksheetFunction.VLookup(vFieldValue, .Range(strDropdownLookupRange), 3, False)
         Else

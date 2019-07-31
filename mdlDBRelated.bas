@@ -89,11 +89,13 @@ Public Sub LoadFieldSettings()
                 'get the address of the fist cell of the range used on the page
                 Set c = .Range(GetConfigValue("FieldSetting_Range_First_Cell"))
                 
+                Application.EnableEvents = False
                'update captions for the newly loaded recordset
                 LoadCaptionsForRecordset c, rs
                 
                 'clean the area of insertion first; it will select all fields actually used on the page; cleaning won't be applied to the first row containing column headers
-                .Range(c.Offset(1, 0).Address, c.Offset(.UsedRange.Rows.Count - c.Row, .UsedRange.Columns.Count - c.Column).Address).ClearContents
+                .Range(c.Offset(1, 0).Address, c.Offset(.UsedRange.rows.Count - c.row, .UsedRange.Columns.Count - c.Column).Address).ClearContents
+                Application.EnableEvents = True
                 
                 'copy all information from the recordset to the page (starting with the second row)
                 c.Offset(1, 0).CopyFromRecordset rs
@@ -164,8 +166,8 @@ Public Sub LoadDictionaryValues()
 '                        Debug.Print Range(c.Offset(.Rows.Count - c.Offset(2).Row).End(xlUp).Address).Offset(0, 2).Address
 '                        Debug.Print Range(c.Offset(2, 0).Address, Range(c.Offset(.Rows.Count - c.Offset(2).Row).End(xlUp).Address).Offset(0, 2).Address).Address
                         Set targetRangeStart = c.Offset(2, 0)
-                        Set targetRangeEnd = .Range(c.Offset(.Rows.Count - c.Offset(2).Row).End(xlUp).Address).Offset(0, 2)
-                        If targetRangeEnd.Row < targetRangeStart.Row Then
+                        Set targetRangeEnd = .Range(c.Offset(.rows.Count - c.Offset(2).row).End(xlUp).Address).Offset(0, 2)
+                        If targetRangeEnd.row < targetRangeStart.row Then
                             Set targetRangeEnd = targetRangeStart
                         End If
                         .Range(targetRangeStart.Address, targetRangeEnd.Address).Clear
