@@ -1,9 +1,9 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} frmSelection 
    ClientHeight    =   2775
-   ClientLeft      =   -140
+   ClientLeft      =   -135
    ClientTop       =   -450
-   ClientWidth     =   8200.001
+   ClientWidth     =   8190
    OleObjectBlob   =   "frmSelection.frx":0000
    StartUpPosition =   1  'CenterOwner
 End

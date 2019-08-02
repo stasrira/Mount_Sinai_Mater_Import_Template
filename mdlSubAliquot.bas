@@ -182,12 +182,14 @@ Public Function CreateSubAliquots(Optional ByRef tRng As Range = Nothing, _
     End If
     
     If showValidateMsg Then
-        iResponse = MsgBox("Do you want to proceed with ""Validate RawData Sheet"" operation? This will validate all created sub-aliquot entries." & _
-                            vbCrLf & vbCrLf & "If you do not want to proceed, click 'Cancel'.", _
+        iResponse = MsgBox("Do you want to proceed with ""Validate RawData Sheet"" operation? This will validate all values presented on the ""RawData"" spreadsheet. " & _
+                            "This also will update ""Validated"" sheet with validated values, thus data presented there will be modified." & _
+                            vbCrLf & vbCrLf & "If you do not want to proceed, click 'Cancel'." & vbCrLf & vbCrLf _
+                            & "Note: this process might take upto a minute, depending on the amount of data entered on the spreadsheet.", _
                             vbOKCancel, cMsgBoxTitle)
-        
+                            
         If iResponse = vbOK Then
-            ValidateWholeWorksheet
+            ValidateWholeWorksheet , True
         End If
     
     End If

@@ -181,7 +181,7 @@ Public Sub ValidateWholeWorksheet(Optional startCell As String = "A1", Optional 
         iResponse = MsgBox("The system is about to start validation of all values presented on the ""RawData"" spreadsheet." & _
                         "This also will update ""Validated"" sheet with validated values, thus data presented there will be modified." & _
                         vbCrLf & vbCrLf & "Do you want to proceed? If not, click 'Cancel'." & vbCrLf & vbCrLf _
-                        & "Note: this process might take upto a minute, depending on the number of data entered on the spreadsheet.", _
+                        & "Note: this process might take upto a minute, depending on the amount of data entered on the spreadsheet.", _
                         vbOKCancel, "MSSM Data Entry File")
     Else
         iResponse = vbOK
