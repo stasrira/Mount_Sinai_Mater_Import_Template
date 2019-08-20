@@ -13,7 +13,6 @@ Public Const cFlatbedScansWorksheetName = "FlatbedScans"
 Public Const cHandledScansWorksheetName = "HandledScans"
 Public Const cConfigWorksheetName = "Configuration"
 
-
 Public Const cCustomMenuName = "&MSSM MENU"
 Public Const cCustomMenu_SubMenuSettings = "Settings"
 Public Const cCustomMenu_SetDropdowonFunc = "Set Dropdown Functionality "
@@ -39,6 +38,8 @@ Public Const cAddrDateField = "$J"
 Public Const cAddrExportAssignment = "$K"
 Public Const cAddrNumericOnly = "$L"
 Public Const cAddrMiscSettings = "$M"
+
+Public Const cConfigFieldPrefix = "##//"
 
 Public dictValidationResults As New Dictionary
 Public dictFieldSettings As New Dictionary
@@ -124,7 +125,7 @@ Public Sub Validate_Cell_Value(ByVal Target As Range)
 '    FieldName = Application.Worksheets("Validated").Range(Left(Target.Address, InStrRev(Target.Address, "$")) + "1").value
 
     'Avoid validating the 1st row (the column headers row)
-    If Target.Row = 1 Then Exit Sub
+    If Target.row = 1 Then Exit Sub
     
     'instanciate a class to validate value of a given cell
     Dim obInput As New clsInputValue
@@ -156,15 +157,8 @@ Public Sub Validate_Cell_Value(ByVal Target As Range)
             'Set dictValidationResults(obValidationResult.ValidatedCellProperties.CellAddress) = obValidationResult
         End If
         
-        
-        'OLD code
-    '    'If obInput.ValidationErrors.ErrorCount > 0 Then
-    '    If obValidationResult.ValidationErrors.ErrorCount > 0 Then
-    '        MsgBox obValidationResult.ValidationErrors.toString, vbOKOnly, "Validation Error"
-    '    End If
-        
-        'update target cell with the validated value
-        obInput.UpdateValidatedCell
+        'update target cell with the validated value on the Validated sheet;
+        obInput.UpdateValidatedCell False, obValidationResult.ValidationStatus
         
     End If
     
@@ -187,7 +181,7 @@ Public Sub ValidateWholeWorksheet(Optional startCell As String = "A1", Optional 
         iResponse = MsgBox("The system is about to start validation of all values presented on the ""RawData"" spreadsheet." & _
                         "This also will update ""Validated"" sheet with validated values, thus data presented there will be modified." & _
                         vbCrLf & vbCrLf & "Do you want to proceed? If not, click 'Cancel'." & vbCrLf & vbCrLf _
-                        & "Note: this process might take upto a minute, depending on the number of data entered on the spreadsheet.", _
+                        & "Note: this process might take upto a minute, depending on the amount of data entered on the spreadsheet.", _
                         vbOKCancel, "MSSM Data Entry File")
     Else
         iResponse = vbOK
@@ -205,7 +199,7 @@ Public Sub ValidateWholeWorksheet(Optional startCell As String = "A1", Optional 
         
         With Worksheets(cRawDataWorksheetName)
             iCols = .UsedRange.Columns.Count 'number of actually used columns
-            iRows = .UsedRange.Rows.Count 'number of actually used rows
+            iRows = .UsedRange.rows.Count 'number of actually used rows
             
             'identify range of actually used cells on the given spreadsheet
             Set rRng = .Range(startCell & ":" & Cells(iRows, iCols).Address)
@@ -283,7 +277,7 @@ Private Sub RemoveFormattingAndContents(Optional sWorksheetName As String = "Raw
         .Range("A1").Select 'select the first cell to remove focus from any other cell that was previously used.
         
         'identify range of all cells except the header row (the first row)
-        Set rRng = .Range(startRow & ":$" & .Cells.Rows.Count)
+        Set rRng = .Range(startRow & ":$" & .Cells.rows.Count)
         
         rRng.Interior.Color = BackgroundColors.NoColor
         rRng.Font.Color = FontColors.Black
@@ -347,11 +341,13 @@ Public Sub ExportValidateSheet()
     Dim xPath As String, xWs As Worksheet
     Dim fileName As String, strResp As String
     Dim dirExists As Boolean, OFSO As FileSystemObject, fileFormat As Integer
+    Dim strCfgVal As String, wsName As String
     Dim fDialog As FileDialog, result As Integer, iTempCount As Integer
     Dim bManifests As Boolean, iResponse As Integer
     Dim oFieldSettings As clsFieldSettings
     Dim sExportAssignment As String
     Dim mnf_study_id As String 'will hold study_id value for submission (if applicable) of the Manifest ID field
+    Dim rng As Range
     
     Application.ScreenUpdating = False
     Application.DisplayAlerts = False
@@ -364,8 +360,28 @@ Public Sub ExportValidateSheet()
     For Each xWs In ThisWorkbook.Sheets
         If xWs.Name = cValidatedWorksheetName Then 'identify Validated worksheet
         
-            xPath = Application.ActiveWorkbook.Path
-            fileName = xPath & "\" & xWs.Name & "_" & Format(Now(), "mmddyyyy_HHMMSS") & ".csv" 'xPath & "\" &
+            'xPath = Application.ActiveWorkbook.Path
+'            fileName = xPath & "\" & xWs.Name & "_" & Format(Now(), "mmddyyyy_HHMMSS") ' & ".csv"
+            fileName = Format(Now(), "yyyymmdd_HHMMSS") & "_" & xWs.Name
+            
+            'get config settings for exporting process
+            Set oFieldSettings = GetFieldSettingsInstance(Nothing, False, cConfigFieldPrefix & "Export")
+            If oFieldSettings.DataAvailable Then
+                'get export file name and file format
+                strCfgVal = Get_MiscSettingValue(cConfigFieldPrefix & "Export", "FileName")
+                If Len(Trim(strCfgVal)) > 0 Then
+                    fileName = Replace(strCfgVal, "|datestamp|", Format(Now(), "yyyymmdd_HHMMSS"))
+                End If
+                strCfgVal = Get_MiscSettingValue(cConfigFieldPrefix & "Export", "worksheetName")
+                If Len(Trim(strCfgVal)) > 0 Then
+                    wsName = strCfgVal
+                End If
+                strCfgVal = Get_MiscSettingValue(cConfigFieldPrefix & "Export", "FileFormat")
+                If IsNumeric(strCfgVal) Then
+                    fileFormat = CInt(strCfgVal)
+                End If
+            End If
+            Set oFieldSettings = Nothing
             
             Set fDialog = Application.FileDialog(msoFileDialogSaveAs)
              
@@ -382,10 +398,20 @@ ShowDialog:
             result = fDialog.Show
              
             If result = -1 Then
-'                'allow only .csv and tab delimited (.txt) files to go through
-                'force CSV format.
-                fileName = Left(fDialog.SelectedItems(1), InStrRev(fDialog.SelectedItems(1), ".")) & "csv" ' this will replace any selected extension with "csv"
-                fileFormat = 6 'force csv file format
+                Select Case fileFormat
+                    Case 0, 6 'fileFormat = 0 is a default case, force it to be csv
+                        fileName = Left(fDialog.SelectedItems(1), InStrRev(fDialog.SelectedItems(1), ".")) & "csv" ' this will replace any selected extension with "csv"
+                        fileFormat = 6 'force csv file format
+                    Case Else 'force any other cases to be xlsx
+                        fileName = Left(fDialog.SelectedItems(1), InStrRev(fDialog.SelectedItems(1), ".")) & "xlsx" ' this will replace any selected extension with "csv"
+                        fileFormat = 51 'force xlsx file format
+                End Select
+                'if file format was not specified through configuration, force csv format as default
+'                If fileFormat = 0 Then
+'                    'force CSV format.
+'                    fileName = Left(fDialog.SelectedItems(1), InStrRev(fDialog.SelectedItems(1), ".")) & "csv" ' this will replace any selected extension with "csv"
+'                    fileFormat = 6 'force csv file format
+'                End If
                                     
                 If fileName <> "" Then
                     'check if the folder exists
@@ -398,11 +424,20 @@ ShowDialog:
                         'copy Validated sheet data to memory
                         xWs.Cells.Copy
                         
+                        'Set rng = xWs.UsedRange 'not in use, an alternative approach
+                        
                         'create a temp sheet to hold export data. This sheet won't have any code behind. This is needed to prevent copying VBA code to the exported file
                         Dim tempSheetName As String
-                        tempSheetName = "ExportValidated_" & Format(Now(), "yyyymmdd_HHMMSS") 'temp sheet name
+                        If Len(Trim(wsName)) = 0 Then
+                            wsName = "ExportValidated"
+                        End If
+                        tempSheetName = Replace(wsName, " ", "") & "_" & Format(Now(), "yyyymmdd_HHMMSS") 'temp sheet name; it has to be unique to make sure it is different from existing sheets
                         ThisWorkbook.Sheets.Add.Name = tempSheetName 'add the new temp sheet
-                        ThisWorkbook.Sheets(tempSheetName).Cells.PasteSpecial Paste:=xlPasteAll 'copy all data from memory to the created sheet
+                        
+                        'not in use, an alternative approach
+                        'ThisWorkbook.Sheets(tempSheetName).Range("A1").Resize(rng.rows.Count, rng.Columns.Count).Cells.value = rng.Cells.value
+                        
+                        ThisWorkbook.Sheets(tempSheetName).Cells.PasteSpecial Paste:=xlPasteValues 'copy all data from memory to the created sheet 'xlPasteAll
                         
                         'delete columns that should be excluded from the export
                         RemoveColumnsExcludedFromExport ThisWorkbook.Sheets(tempSheetName), xWs, sExportAssignment
@@ -462,7 +497,9 @@ ShowDialog:
     Application.ScreenUpdating = True
 End Sub
 
-Public Function GetFieldSettingsInstance(cellProperties As clsCellProperties, Optional updateVolatileSetting As Boolean = True, Optional fieldName As String = "")
+Public Function GetFieldSettingsInstance(cellProperties As clsCellProperties, _
+                                            Optional updateVolatileSetting As Boolean = True, _
+                                            Optional fieldName As String = "") As clsFieldSettings
     Dim oFieldSettings As clsFieldSettings
     
     If cellProperties Is Nothing And Len(Trim(fieldName)) > 0 Then
@@ -506,7 +543,7 @@ Public Sub RemoveColumnsExcludedFromExport(tempWorksheet As Worksheet, sourceWor
         'iRows = .UsedRange.Rows.Count 'number of actually used rows
         
         'identify range of actually used columns on the given spreadsheet. i.e. RawData. The Range will contain 1 row and all filled columns.
-        Set rRng = sourceWorksheet.Range(startCell & ":" & Cells(.Range(startCell).Row, iCols).Address)
+        Set rRng = sourceWorksheet.Range(startCell & ":" & Cells(.Range(startCell).row, iCols).Address)
         
         'Loop through each cell (column) of the range, identify field assigned to this column and check if it marked as dropdown. If so, apply dropdown settings. If not clear out dropdown settings
         For Each rCell In rRng.Cells
@@ -552,17 +589,31 @@ End Sub
 'This function syncs fields listed in the FieldSettings sheets to RawData and Validated sheets. List of fields from FieldSettings will be transposed to the other sheets.
 Public Sub SyncFieldsAccrossSheets()
     Dim iRows As Integer, iCols As Integer, rRng As Range, numFields As Integer
-    Dim tempFieldsListRange As Variant
+    Dim tempFieldsListRange As Variant, cleanFieldsList() As String
     Dim curVoidAutomatedValidation As Boolean
+    Dim i As Integer, j As Integer
     
     With Worksheets(cSettingsWorksheetName)
         'iCols = .UsedRange.Columns.Count 'number of actually used columns
-        iRows = .UsedRange.Rows.Count 'number of actually used rows
-        numFields = iRows - Worksheets(cSettingsWorksheetName).Range(cFieldSettings_FirstFieldCell).Row + 1 'calculate number of fields in the list => Total - start row (with an adjustment)
+        iRows = .UsedRange.rows.Count 'number of actually used rows
+        'numFields = iRows - Worksheets(cSettingsWorksheetName).Range(cFieldSettings_FirstFieldCell).row + 1 'calculate number of fields in the list => Total - start row (with an adjustment)
         
         'identify range of actually used cells on the given spreadsheet
         Set rRng = .Range(cFieldSettings_FirstFieldCell & ":" & Cells(iRows, 1).Address)
         tempFieldsListRange = rRng.value
+        
+        j = 0
+        
+        For i = LBound(tempFieldsListRange) To UBound(tempFieldsListRange)
+            If Len(Trim(tempFieldsListRange(i, 1))) > 0 And Left(tempFieldsListRange(i, 1), 4) <> cConfigFieldPrefix Then
+                ReDim Preserve cleanFieldsList(j)
+                cleanFieldsList(j) = tempFieldsListRange(i, 1)
+                j = j + 1
+            End If
+        Next
+                
+        'get count of new fields to be applied
+        numFields = UBound(cleanFieldsList) + 1
         
 '        curVoidAutomatedValidation = bVoidAutomatedValidation 'save current status of bVoidAutomatedValidation into a temp variable
 '        bVoidAutomatedValidation = True 'formating removal will trigger automated validation, to prevent that this flag is set temporarily true
@@ -574,17 +625,17 @@ Public Sub SyncFieldsAccrossSheets()
         With Worksheets(cRawDataWorksheetName)
             'clean existing fields on RawData Sheet
             iCols = .UsedRange.Columns.Count 'number of actually used columns
-            .Range(cRawData_FirstColumnCell & ":" & Cells(Range(cRawData_FirstColumnCell).Row, iCols).Address).ClearContents
+            .Range(cRawData_FirstColumnCell & ":" & Cells(Range(cRawData_FirstColumnCell).row, iCols).Address).ClearContents
             'apply new list of fields to RawData sheet
-            .Range(cRawData_FirstColumnCell & ":" & Cells(Range(cRawData_FirstColumnCell).Row, numFields).Address) = Application.Transpose(tempFieldsListRange)
+            .Range(cRawData_FirstColumnCell & ":" & Cells(Range(cRawData_FirstColumnCell).row, numFields).Address) = cleanFieldsList 'Application.Transpose(tempFieldsListRange) 'cleanFieldsList '
         End With
         
         With Worksheets(cValidatedWorksheetName)
             'clean existing fields on RawData Sheet
             iCols = .UsedRange.Columns.Count 'number of actually used columns
-            Worksheets(cValidatedWorksheetName).Range(cValidated_FirstColumnCell & ":" & Cells(Range(cValidated_FirstColumnCell).Row, iCols).Address).ClearContents
+            Worksheets(cValidatedWorksheetName).Range(cValidated_FirstColumnCell & ":" & Cells(Range(cValidated_FirstColumnCell).row, iCols).Address).ClearContents
             'apply new list of fields to Validated sheet
-            Worksheets(cValidatedWorksheetName).Range(cValidated_FirstColumnCell & ":" & Cells(Range(cValidated_FirstColumnCell).Row, numFields).Address) = Application.Transpose(tempFieldsListRange)
+            Worksheets(cValidatedWorksheetName).Range(cValidated_FirstColumnCell & ":" & Cells(Range(cValidated_FirstColumnCell).row, numFields).Address) = cleanFieldsList 'Application.Transpose(tempFieldsListRange) 'cleanFieldsList '
         End With
         
         'set global flag ON to notify users about modifications applied to fields captions on RawData and Validated fields
@@ -626,7 +677,7 @@ Public Sub ApplyDropdownSettingsToCells(Optional sWorksheetName As String = "Raw
         'iRows = .UsedRange.Rows.Count 'number of actually used rows
         
         'identify range of actually used columns on the given spreadsheet. i.e. RawData. The Range will contain 1 row and all filled columns.
-        Set rRng = .Range(startCell & ":" & Cells(.Range(startCell).Row, iCols).Address)
+        Set rRng = .Range(startCell & ":" & Cells(.Range(startCell).row, iCols).Address)
         
         'Loop through each cell (column) of the range, identify field assigned to this column and check if it marked as dropdown. If so, apply dropdown settings. If not clear out dropdown settings
         For Each rCell In rRng.Cells
@@ -644,7 +695,7 @@ Public Sub ApplyDropdownSettingsToCells(Optional sWorksheetName As String = "Raw
             
             'Debug.Print .Range(Cells(rCell.Row, rCell.Column).Address & ":" & Cells(rCell.EntireColumn.Rows.Count, rCell.Column).Address).Address 'rCell.EntireColumn.Rows.Count
             'set the range of the cells (of the current worksheet) to be updated with the Validation rulles
-            Set rDropDown = .Range(Cells(rCell.Row, rCell.Column).Address & ":" & Cells(rCell.EntireColumn.Rows.Count, rCell.Column).Address)
+            Set rDropDown = .Range(Cells(rCell.row, rCell.Column).Address & ":" & Cells(rCell.EntireColumn.rows.Count, rCell.Column).Address)
             
             rDropDown.Validation.Delete 'delete previously existing validation
         
@@ -690,7 +741,7 @@ End Sub
 Public Function GetRangeOfUsedCellsInColumn(curWorkSheet As Worksheet, firstCell As String) As String
 
     With curWorkSheet.Range(firstCell).Cells(1)
-        GetRangeOfUsedCellsInColumn = .Address & ":" & .Offset(curWorkSheet.Rows.Count - .Row).End(xlUp).Address
+        GetRangeOfUsedCellsInColumn = .Address & ":" & .Offset(curWorkSheet.rows.Count - .row).End(xlUp).Address
     End With
 'Worksheets(cDictionayWorksheetName).Range(oFieldSettings.FieldDropDownValueLookupRange).Cells(1).Address _
 '  & ":" & _
@@ -704,7 +755,7 @@ Public Sub ValidateCurrentCell()
         'Debug.Print ActiveCell.Address
         Dim cellRow As Integer
     
-        cellRow = ActiveCell.Row 'Right(ActiveCell.Address, Len(ActiveCell.Address) - InStrRev(ActiveCell.Address, "$"))
+        cellRow = ActiveCell.row 'Right(ActiveCell.Address, Len(ActiveCell.Address) - InStrRev(ActiveCell.Address, "$"))
             
         'Do not perform validation for the captions row (the first row)
         If cellRow > 1 Then
@@ -1011,6 +1062,7 @@ Public Sub LoadCustomMenus()
     Dim cmbControl As CommandBarControl
     Dim cmbSettings As CommandBarControl
     Dim cmbDBLink As CommandBarControl
+    Dim cmbSpecialOps As CommandBarControl
     
     'add custom menus to Add-In ribon of Excel
     Set cmbBar = Application.CommandBars("Worksheet Menu Bar")
@@ -1064,7 +1116,24 @@ Public Sub LoadCustomMenus()
             .OnAction = "FBS_Scan"
             .FaceId = 485 '18
         End With
-         
+        
+        
+        'create sub menu "Special Operations"
+        Set cmbSpecialOps = .Controls.Add(Type:=msoControlPopup, Temporary:=True)
+        With cmbSpecialOps
+            .Caption = "Special Operations"
+                With .Controls.Add(Type:=msoControlButton)
+                .Caption = "Create Sub-Aliquots (for selected rows)"
+                .OnAction = "CreateSubAliquots"
+                .FaceId = 485 '18
+            End With
+            With .Controls.Add(Type:=msoControlButton)
+                .Caption = "Create Sub-Aliquots (for all rows)"
+                .OnAction = "CreateSubAliquotsAll"
+                .FaceId = 485 '18
+            End With
+        End With
+        
         'create sub menu "DB Link"
         Set cmbDBLink = .Controls.Add(Type:=msoControlPopup, Temporary:=True)
         With cmbDBLink
@@ -1133,7 +1202,7 @@ Public Sub HighlightDuplicates(Optional rTargetCells As Range)
     For Each rFirstRowCell In firstRowRange
         
         'identify range of all used cells in the column corresponding to the rFirstRowCell
-        Set Target = Range(rFirstRowCell.Cells(1).Address, Cells(Rows.Count, rFirstRowCell.Column).End(xlUp))
+        Set Target = Range(rFirstRowCell.Cells(1).Address, Cells(rows.Count, rFirstRowCell.Column).End(xlUp))
             
         'loop through each cell of the identified column's range and utilize standard CountIf function to identify duplicates
         For Each rCell In Target
@@ -1168,7 +1237,7 @@ Public Function GetConfigValue(Key As String) As Variant
         Dim fnr As Range
         Dim iRows As Integer
         
-        iRows = .UsedRange.Rows.Count 'number of actually used rows
+        iRows = .UsedRange.rows.Count 'number of actually used rows
         
         'identify range of actually used cells on the given spreadsheet and apply Find function
         Set fnr = .Range(cConfig_FirstFieldCell & ":" & .Cells(iRows, 1).Address).Find(Key, LookIn:=xlValues) 'fnr will contain the cell matching the find criteria
@@ -1187,7 +1256,7 @@ Public Function SetConfigValue(Key As String, value As String) As Integer
         Dim fnr As Range
         Dim iRows As Integer
         
-        iRows = .UsedRange.Rows.Count 'number of actually used rows
+        iRows = .UsedRange.rows.Count 'number of actually used rows
         
         'identify range of actually used cells on the given spreadsheet and apply Find function
         Set fnr = .Range(cConfig_FirstFieldCell & ":" & .Cells(iRows, 1).Address).Find(Key, LookIn:=xlValues) 'fnr will contain the cell matching the find criteria
@@ -1340,13 +1409,13 @@ Public Sub CopyValuesToDictionarySheet(sourceRandgeAddress As String, targetRang
         Dim targetRange As Range, sourceRange As Range, tRange As Range
         Dim targetRangeStart As Range, targetRangeEnd As Range
         
-        Set sourceRange = .Range(sourceRandgeAddress & ":" & .Range(sourceRandgeAddress).Offset(.Rows.Count - .Range(sourceRandgeAddress).Row).End(xlUp).Address) 'this source range will include all cells (in this column) located below the given cell
+        Set sourceRange = .Range(sourceRandgeAddress & ":" & .Range(sourceRandgeAddress).Offset(.rows.Count - .Range(sourceRandgeAddress).row).End(xlUp).Address) 'this source range will include all cells (in this column) located below the given cell
         
         With Worksheets(cDictionayWorksheetName)
             'clear target range
             Set targetRangeStart = .Range(targetRangeAddress)
-            Set targetRangeEnd = .Range(targetRangeAddress).Offset(.Rows.Count - .Range(targetRangeAddress).Row, 0).End(xlUp)
-            If targetRangeEnd.Row < targetRangeStart.Row Then
+            Set targetRangeEnd = .Range(targetRangeAddress).Offset(.rows.Count - .Range(targetRangeAddress).row, 0).End(xlUp)
+            If targetRangeEnd.row < targetRangeStart.row Then
                 Set targetRangeEnd = targetRangeStart
             End If
             Set targetRange = .Range(targetRangeStart.Address & ":" & targetRangeEnd.Address)
@@ -1379,7 +1448,7 @@ Public Sub CopyValuesToDictionarySheet(sourceRandgeAddress As String, targetRang
                         'Old code - TO DELETE - Set targetRange = .Range(targetRangeAddress & ":" & .Range(targetRangeAddress).Offset(.Rows.Count - .Range(targetRangeAddress).Row).End(xlUp).Address)
                 'After deleting cells above, Start and End Ranges have to be re-defined
                 Set targetRangeStart = .Range(targetRangeAddress)
-                Set targetRangeEnd = .Range(targetRangeAddress).Offset(.Rows.Count - .Range(targetRangeAddress).Row).End(xlUp)
+                Set targetRangeEnd = .Range(targetRangeAddress).Offset(.rows.Count - .Range(targetRangeAddress).row).End(xlUp)
                 Set targetRange = .Range(targetRangeStart.Address & ":" & targetRangeEnd.Address)
                 '.Rows.Count - .Row
                 targetRange.NumberFormat = "@" 'this will set number format to Text
@@ -1412,7 +1481,7 @@ Public Function GetFieldSettingPropertyVal_All(colAddr As String, Optional safeD
         Dim iRows As Integer
         Dim val_arr() As String
         
-        iRows = .UsedRange.Rows.Count 'number of actually used rows
+        iRows = .UsedRange.rows.Count 'number of actually used rows
         
         'identify range of actually used cells on the given spreadsheet for the ExportAssignment column
         Set rn = .Range(cAddrExportAssignment & "2" & ":" & cAddrExportAssignment & iRows)
@@ -1421,4 +1490,25 @@ Public Function GetFieldSettingPropertyVal_All(colAddr As String, Optional safeD
         
         GetFieldSettingPropertyVal_All = val_arr
     End With
+End Function
+
+Public Function GetSplitVal(strToSplit As String, delim As String, member_num As Integer) As String
+    Dim arr() As String
+    
+    arr = Split(strToSplit, delim)
+    If UBound(arr) >= member_num Then
+        GetSplitVal = arr(member_num)
+    Else
+        GetSplitVal = ""
+    End If
+    
+End Function
+
+Public Function GetRowNum() As Integer 'cellAddr As String, Optional curWks As String = "") As Integer
+'    If Len(Trim(curWks)) = 0 Then
+'        curWks = cRawDataWorksheetName
+'    End If
+'
+'    GetRowNum = Worksheets(curWks).Range(cellAddr).row
+    GetRowNum = 45
 End Function

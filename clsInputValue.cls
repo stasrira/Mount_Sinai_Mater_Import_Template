@@ -12,15 +12,7 @@ Option Explicit
 'TODO Replace with property calls
 Private FieldValue As String
 Private FieldValueValidated As String
-'Private FieldAddress As String
 Private fieldName As String
-'Private FieldDefaultValue As String
-'Private FieldDefaultBool As Boolean
-'Private FieldErrorMessage As String
-'Private FieldRequiredBool As Boolean
-
-'Private Const cRawDataWorksheetName = "RawData"
-'Private Const cValidatedWorksheetName = "Validated"
 
 Private oFieldSettings As clsFieldSettings
 Private cellProperties As clsCellProperties
@@ -191,8 +183,9 @@ Public Sub ValidateFieldValue(ByRef obValidatedResult As clsValidationResult) 'A
     
 End Sub
 
-Public Sub UpdateValidatedCell(Optional CleanOutValue As Boolean = False)
-    Dim strValue As String
+Public Sub UpdateValidatedCell(Optional CleanOutValue As Boolean = False, _
+                                Optional ValidationStatus As ValidationOutcomeStatus = -1)
+    Dim strValue As String, curRawDataVal As String
     
     'if CleanOutValue is set to True, it will clear out the current cell
     If CleanOutValue Then
@@ -203,7 +196,22 @@ Public Sub UpdateValidatedCell(Optional CleanOutValue As Boolean = False)
         ApplyConditionalFormating False
     End If
     
+    'update corresponded cell on the Validated sheet
     Application.Worksheets(cValidatedWorksheetName).Range(cellProperties.CellAddress).value = strValue
+    
+    curRawDataVal = Worksheets(cRawDataWorksheetName).Range(cellProperties.CellAddress).value
+    
+    'if this is not a cleanOut call
+    If Not CleanOutValue Then
+        'if RawData cell is empty and default value or map convesrion were applied, update cell on the RawData sheet
+        If Len(Trim(curRawDataVal)) = 0 And (ValidationStatus = DefaultAssigned Or ValidationStatus = MapConversionApplied) Then
+            On Error Resume Next
+            Application.EnableEvents = False 'prevent triggering change event on Rawdata sheet because of the update on the next line
+            Worksheets(cRawDataWorksheetName).Range(cellProperties.CellAddress).value = oFieldSettings.FieldDefaultValue
+            Application.EnableEvents = True 'enable events back
+            On Error GoTo 0
+        End If
+    End If
 End Sub
 
 Private Sub ApplyConditionalFormating(Optional CleanOutValue As Boolean = False)
@@ -216,15 +224,6 @@ Private Sub ApplyConditionalFormating(Optional CleanOutValue As Boolean = False)
         ApplyFormatingToCell Worksheets(cValidatedWorksheetName).Range(cellProperties.CellAddress), cellProperties.CellConditionalInteriorColor, cellProperties.CellConditionalFontColor
     End If
 End Sub
-
-'moved to mdlGeneric
-'Private Sub ApplyFormatingToCell(ByRef vRange As Range, bgrColor As BackgroundColors, fntColor As FontColors)
-'    vRange.Interior.Color = bgrColor
-'    vRange.Font.Color = fntColor
-'    vRange.BorderAround xlContinuous, xlHairline, xlColorIndexAutomatic
-''    vRange.Borders.LineStyle = xlContinuous 'xlNone
-''    vRange.Borders.Weight = xlHairline
-'End Sub
 
 Private Sub ProcessCalculationTrigger(fieldName As String, ByRef obValidatedResult As clsValidationResult, CalcOverwriteExistingVal As Boolean)
     Select Case fieldName

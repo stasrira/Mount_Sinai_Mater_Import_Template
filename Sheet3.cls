@@ -41,8 +41,8 @@ Private Sub Worksheet_Change(ByVal Target As Range)
                         
         If iResponse = vbOK Then
             With Target.Worksheet
-                rStart = Target.Offset(Target.Rows.Count).Cells(1).Row
-                rEnd = Target.Offset(.Rows.Count - rStart).End(xlUp).Cells(1).Row + 1
+                rStart = Target.Offset(Target.rows.Count).Cells(1).row
+                rEnd = Target.Offset(.rows.Count - rStart).End(xlUp).Cells(1).row + 1
                 'clear un-needed values
                 Application.ScreenUpdating = False
                 Application.EnableEvents = False

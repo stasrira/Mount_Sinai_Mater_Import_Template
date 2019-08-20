@@ -79,7 +79,7 @@ Sub Clean_Scan_Results()
     
     With Worksheets(cFlatbedScansWorksheetName) 'Sheets(2)
         'clear main scan area; identify number of actually used rows and use number of columns specified in ScanResultsColumnsUsed const
-        Set r = .Range(ScanResultsTargetLocation & ":" & .Range(ScanResultsTargetLocation).Offset(.Rows.Count - .Range(ScanResultsTargetLocation).Row).End(xlUp).Offset(0, ScanResultsColumnsUsed - 1).Address)
+        Set r = .Range(ScanResultsTargetLocation & ":" & .Range(ScanResultsTargetLocation).Offset(.rows.Count - .Range(ScanResultsTargetLocation).row).End(xlUp).Offset(0, ScanResultsColumnsUsed - 1).Address)
         r.Clear
         
         Clean_Scan_Status

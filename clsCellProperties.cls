@@ -23,12 +23,12 @@ Public Sub InitializeValues(vCellAddr As String)
     '    Dim Delim2 As Integer
     '    Delim2 = InStrRev(vCellAddr, "$")
     '   Right(vCellAddr, Len(vCellAddr) - Delim2)
-        cellRow = .Row
+        cellRow = .row
     '    CellCollumn = Replace(Left(vCellAddr, Delim2), "$", "")
         
         'CellFieldName = Application.Worksheets(cRawDataWorksheetName).Range(CellCollumn + "1").Value
     
-        CellFieldName = .Offset(-.Row + 1, 0).Value 'offset up to get to the first row (which should hold the field name)
+        CellFieldName = .Offset(-.row + 1, 0).value 'offset up to get to the first row (which should hold the field name)
     End With
     
 End Sub
