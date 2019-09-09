@@ -2,7 +2,7 @@ Attribute VB_Name = "mdlGeneric"
 Option Explicit
 
 Public Const cHelpTitle = "Sample Entry Validation Tool"
-Public Const cHelpVersion = "1.019"
+Public Const cHelpVersion = "1.020"
 Public Const cHelpDescription = "Questions and technical support: email to stasrirak.ms@gmail.com"
 
 Public Const cRawDataWorksheetName = "RawData"
@@ -461,7 +461,7 @@ ShowDialog:
                         
                         'prompt users to submit Manifest IDs, if manifest_id field exists in FieldSettings and also configuration setting "Manifest_Prompt_OnExport" is True
                         'bManifests = CBool(GetConfigValue("Manifest_Prompt_OnExport"))
-                        Set oFieldSettings = GetFieldSettingsInstance(Nothing, False, "MT_ManifestID") 'get FieldSettings object for MT_ManifestID field
+                        Set oFieldSettings = GetFieldSettingsInstance(Nothing, False, ManifestFieldName) 'get FieldSettings object for MT_ManifestID field
                         If oFieldSettings.DataAvailable And CBool(GetConfigValue("Manifest_Prompt_OnExport")) Then
                             'get Study ID from misc settings for the ManifestID field. If it is not present, do not submit Manifest ID
                             mnf_study_id = Get_MiscSettingValue(ManifestFieldName, StudyIdSettingName)

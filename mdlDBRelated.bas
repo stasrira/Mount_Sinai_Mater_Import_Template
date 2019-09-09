@@ -245,10 +245,10 @@ End Sub
 '
 'End Function
 
-Public Function SubmitManifests(study_id As String, Optional AvoidWarningMessage As Boolean = False)
+Public Function SubmitManifests(Optional study_id As String = "", Optional AvoidWarningMessage As Boolean = False)
     Const msgTitle = "Submitting Manifest IDs"
-'    Const fieldName = "MT_ManifestID"
-'    Const settingName = "study_id"
+    Const fieldName = "MT_ManifestID"
+    Const settingName = "study_id"
     
     Dim mics As String 'study_id As String
     Dim manifest_ids As String
@@ -279,11 +279,16 @@ Public Function SubmitManifests(study_id As String, Optional AvoidWarningMessage
     sb.Append "MANIFEST SUBMISSION STATUS:" & vbCrLf & "-------------------------------"
     
     'get comma delimited list of Manifest IDs
-    manifest_ids = Get_DisticntValuesFromField(fieldName)
+    manifest_ids = Get_DisticntValuesFromField() 'fieldName
     
-    'this assigment was moved to "ExportValidateSheet" function of the mdlGeneric.
+    
+    'TODO: create a common procedure for retrieving study_id and list of Manifest ids (to be submitted) that will be used for all methods (from Export menu and from the dedicated menu) of submitting manifest id to DB
+    'this assigment was also moved to "ExportValidateSheet" function of the mdlGeneric.
+    'If study_id value is blank, the code below will retreive the value for study id; this is for cases when Sumbit Manifest is invoked from the menu directly (see LoadCustomMenu function) and thus study id is not supplied
 '    'get misc settings for the ManifestID field
-'    study_id = Get_MiscSettingValue(fieldName, settingName)
+    If Len(Trim(study_id)) = 0 Then
+        study_id = Get_MiscSettingValue(fieldName, settingName)
+    End If
     
     'get current user id
     user_id = Environ("USERDOMAIN") + "\" + Environ("Username")
