@@ -1504,6 +1504,18 @@ Public Function GetSplitVal(strToSplit As String, delim As String, member_num As
     
 End Function
 
+Public Function GetSplitVal_lastMember(strToSplit As String, delim As String) As String
+    Dim arr() As String
+    
+    arr = Split(strToSplit, delim)
+    If UBound(arr) >= 1 Then
+        GetSplitVal_lastMember = arr(UBound(arr))
+    Else
+        GetSplitVal_lastMember = ""
+    End If
+    
+End Function
+
 Public Function GetRowNum() As Integer 'cellAddr As String, Optional curWks As String = "") As Integer
 '    If Len(Trim(curWks)) = 0 Then
 '        curWks = cRawDataWorksheetName
