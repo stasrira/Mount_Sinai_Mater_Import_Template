@@ -1,6 +1,7 @@
 Attribute VB_Name = "mdlService"
 Option Explicit
 
+'ExportModules "", "CodeBehind"
 Sub ExportModules(Optional sPath As String = "", Optional sSubFolder As String = "")
 'Dim sPath As String
 Dim sFile As String

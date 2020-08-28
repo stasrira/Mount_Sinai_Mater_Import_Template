@@ -437,7 +437,11 @@ ShowDialog:
                         'not in use, an alternative approach
                         'ThisWorkbook.Sheets(tempSheetName).Range("A1").Resize(rng.rows.Count, rng.Columns.Count).Cells.value = rng.Cells.value
                         
-                        ThisWorkbook.Sheets(tempSheetName).Cells.PasteSpecial Paste:=xlPasteValues 'copy all data from memory to the created sheet 'xlPasteAll
+                        With ThisWorkbook.Sheets(tempSheetName).Cells
+                            'ThisWorkbook.Sheets(tempSheetName).Cells.PasteSpecial Paste:=xlPasteValues 'copy all data from memory to the created sheet 'xlPasteAll
+                            .PasteSpecial Paste:=xlPasteValues 'copy all data from memory to the created sheet 'xlPasteAll
+                            .NumberFormat = "MM/DD/YYYY" 'this line makes sure that date feilds are exported in the date format and not as an internal excel date value
+                        End With
                         
                         'delete columns that should be excluded from the export
                         RemoveColumnsExcludedFromExport ThisWorkbook.Sheets(tempSheetName), xWs, sExportAssignment
