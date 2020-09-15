@@ -2,7 +2,7 @@ Attribute VB_Name = "mdlGeneric"
 Option Explicit
 
 Public Const cHelpTitle = "Sample Entry Validation Tool"
-Public Const cHelpVersion = "1.021"
+Public Const cHelpVersion = "1.024"
 Public Const cHelpDescription = "Questions and technical support: email to stasrirak.ms@gmail.com"
 
 Public Const cRawDataWorksheetName = "RawData"
@@ -440,8 +440,10 @@ ShowDialog:
                         With ThisWorkbook.Sheets(tempSheetName).Cells
                             'ThisWorkbook.Sheets(tempSheetName).Cells.PasteSpecial Paste:=xlPasteValues 'copy all data from memory to the created sheet 'xlPasteAll
                             .PasteSpecial Paste:=xlPasteValues 'copy all data from memory to the created sheet 'xlPasteAll
-                            .NumberFormat = "MM/DD/YYYY" 'this line makes sure that date feilds are exported in the date format and not as an internal excel date value
+                            '.NumberFormat = "MM/DD/YYYY" 'this line makes sure that date feilds are exported in the date format and not as an internal excel date value
                         End With
+                        
+                        CovertDateColumnToDateFormat ThisWorkbook.Sheets(tempSheetName)
                         
                         'delete columns that should be excluded from the export
                         RemoveColumnsExcludedFromExport ThisWorkbook.Sheets(tempSheetName), xWs, sExportAssignment
@@ -529,6 +531,33 @@ Public Function GetFieldSettingsInstance(cellProperties As clsCellProperties, _
     Set GetFieldSettingsInstance = oFieldSettings
     
 End Function
+
+'loop through all fields and check if any DateType is set to True, if so, convert entire column for that field to date format
+Public Sub CovertDateColumnToDateFormat(tempWorksheet As Worksheet)
+    Dim rRng As Range, rCell As Range
+    Dim iCols As Integer
+    Dim cellProperties As clsCellProperties
+    Dim oFieldSettings As clsFieldSettings
+    
+    Const startCell = "A2" 'first cell containing field values
+    With tempWorksheet
+        iCols = .UsedRange.Columns.Count 'number of actually used columns
+        Set rRng = .Range(startCell & ":" & Cells(.Range(startCell).row, iCols).Address)
+        
+        For Each rCell In rRng.Cells
+            Set cellProperties = New clsCellProperties
+            cellProperties.InitializeValues rCell.Address
+
+            'get the Field Settings for the selected field
+            Set oFieldSettings = GetFieldSettingsInstance(cellProperties, False, cellProperties.CellFieldName)
+            
+            If oFieldSettings.FieldDateType Then
+                rCell.EntireColumn.NumberFormat = "mm/dd/yyyy"
+            End If
+            Set cellProperties = Nothing
+        Next
+    End With
+End Sub
 
 'this function will loop through the FieldSettings Dictionary and check if any of the fields have to be excluded from the export. If such field found, the corresponded column will be deleted from the passed worksheet
 Public Sub RemoveColumnsExcludedFromExport(tempWorksheet As Worksheet, sourceWorksheet As Worksheet, sExportAssignment As String)
