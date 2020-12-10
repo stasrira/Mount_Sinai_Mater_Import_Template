@@ -2,7 +2,7 @@ Attribute VB_Name = "mdlGeneric"
 Option Explicit
 
 Public Const cHelpTitle = "Sample Entry Validation Tool"
-Public Const cHelpVersion = "1.024"
+Public Const cHelpVersion = "1.025"
 Public Const cHelpDescription = "Questions and technical support: email to stasrirak.ms@gmail.com"
 
 Public Const cRawDataWorksheetName = "RawData"
@@ -12,6 +12,7 @@ Public Const cDictionayWorksheetName = "Dictionary"
 Public Const cFlatbedScansWorksheetName = "FlatbedScans"
 Public Const cHandledScansWorksheetName = "HandledScans"
 Public Const cConfigWorksheetName = "Configuration"
+Public Const cTempLoadWrkSh = "FBS_TempLoad"
 
 Public Const cCustomMenuName = "&MSSM MENU"
 Public Const cCustomMenu_SubMenuSettings = "Settings"
@@ -1149,6 +1150,11 @@ Public Sub LoadCustomMenus()
             .OnAction = "FBS_Scan"
             .FaceId = 485 '18
         End With
+        With .Controls.Add(Type:=msoControlButton)
+            .Caption = "Load Flatbed Scanner Result File"
+            .OnAction = "Load_FBS_Scan_Results"
+            .FaceId = 485 '18
+        End With
         
         
         'create sub menu "Special Operations"
@@ -1439,10 +1445,10 @@ Public Sub CopyValuesToDictionarySheet(sourceRandgeAddress As String, targetRang
 
     With Worksheets(ws_name)
         
-        Dim targetRange As Range, sourceRange As Range, tRange As Range
+        Dim targetRange As Range, SourceRange As Range, tRange As Range
         Dim targetRangeStart As Range, targetRangeEnd As Range
         
-        Set sourceRange = .Range(sourceRandgeAddress & ":" & .Range(sourceRandgeAddress).Offset(.rows.Count - .Range(sourceRandgeAddress).row).End(xlUp).Address) 'this source range will include all cells (in this column) located below the given cell
+        Set SourceRange = .Range(sourceRandgeAddress & ":" & .Range(sourceRandgeAddress).Offset(.rows.Count - .Range(sourceRandgeAddress).row).End(xlUp).Address) 'this source range will include all cells (in this column) located below the given cell
         
         With Worksheets(cDictionayWorksheetName)
             'clear target range
@@ -1460,11 +1466,11 @@ Public Sub CopyValuesToDictionarySheet(sourceRandgeAddress As String, targetRang
             Set targetRange = .Range(targetRangeAddress) 'this range points the first cell in column that will hold copied values (i.e. "BA3")
         End With
         
-        If sourceRange.Cells.Count > 1 Then 'proceed with copying data only if the source has some data (beside the header cell)
+        If SourceRange.Cells.Count > 1 Then 'proceed with copying data only if the source has some data (beside the header cell)
             'copy unique list of Box IDs from Flatbed scanner sheet to Dictionary. Because Box IDs repeats for muptiple Barcodes, only unique values will be copied to dictionary
-            sourceRange.AdvancedFilter Action:=xlFilterCopy, CopyToRange:=targetRange, unique:=CopyUniqueValuesOnly
+            SourceRange.AdvancedFilter Action:=xlFilterCopy, CopyToRange:=targetRange, unique:=CopyUniqueValuesOnly
             'copy the same information (as in previous row) to the 2nd column shifted to the right on 2 cells
-            sourceRange.AdvancedFilter Action:=xlFilterCopy, CopyToRange:=targetRange.Offset(0, 2), unique:=CopyUniqueValuesOnly
+            SourceRange.AdvancedFilter Action:=xlFilterCopy, CopyToRange:=targetRange.Offset(0, 2), unique:=CopyUniqueValuesOnly
             '.Range("D1:" & .Range("D1").End(xlDown).Address).AdvancedFilter Action:=xlFilterCopy, CopyToRange:=Worksheets(cDictionayWorksheetName).Range("BC3"), Unique:=True
             
             'sort all copied values (in both columns)
@@ -1556,4 +1562,28 @@ Public Function GetRowNum() As Integer 'cellAddr As String, Optional curWks As S
 '
 '    GetRowNum = Worksheets(curWks).Range(cellAddr).row
     GetRowNum = 45
+End Function
+
+Public Function getTimeLength(tStart As Date, tEnd As Date) As String
+    Dim mSeconds As Long, mHours As Long, mMinutes As Long
+    Dim strTime As String
+    
+    mSeconds = DateDiff("s", tStart, tEnd)
+    mHours = mSeconds \ 3600
+    mMinutes = (mSeconds - (mHours * 3600)) \ 60
+    mSeconds = mSeconds - ((mHours * 3600) + (mMinutes * 60))
+    
+    If mHours > 0 Then strTime = mHours & " hours "
+    If mMinutes > 0 Then strTime = strTime & mMinutes & " minutes "
+    strTime = strTime & mSeconds & " seconds "
+    
+    getTimeLength = strTime
+End Function
+
+Public Function ArrLength(a As Variant) As Integer
+   If IsEmpty(a) Then
+      ArrLength = 0
+   Else
+      ArrLength = UBound(a) - LBound(a) + 1
+   End If
 End Function

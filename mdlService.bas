@@ -10,7 +10,7 @@ Dim comp As Object ' VBComponent
 Dim wb As Object 'workbook
 Dim i As Integer
     
-    If Len(Trim(sPath)) = 0 Then sPath = Application.ActiveWorkbook.Path & "\"
+    If Len(Trim(sPath)) = 0 Then sPath = Application.ActiveWorkbook.path & "\"
     If Len(Trim(sSubFolder)) > 0 Then sPath = sPath & sSubFolder & "\"
     
     On Error Resume Next

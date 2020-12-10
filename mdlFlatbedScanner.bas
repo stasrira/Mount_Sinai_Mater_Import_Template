@@ -443,4 +443,205 @@ Function PostScanResultsToPage(scan_result As String, rackId_val As String) As S
     
 End Function
 
+Function Load_FBS_Scan_Results()
+    ImportFBSFile
+End Function
 
+Public Sub ImportFBSFile()
+    Dim iResponse As Integer
+    Dim importFileOutcome As Boolean
+    Dim strFileToOpen As String
+    Dim tStart As Date, tEnd As Date
+    
+    'confirm if user want to proceed.
+    iResponse = MsgBox("The system is about to start importing Flatbed scanner result file to the 'FlatbedScans' tab. " _
+                & vbCrLf & "- Any currently existing data will be overwritten wih the new data!" _
+                & vbCrLf & vbCrLf & "Do you want to proceed? If not, click 'Cancel'." & vbCrLf & vbCrLf _
+                & "Note: " _
+                & vbCrLf & "- This process might take prolonged time, depending on the number of rows being imported. " _
+                & vbCrLf & "- Some screen flickering might occur during the process. ", _
+                vbOKCancel + vbInformation, "Master Check-in Template - FBS scan import")
+    
+    If iResponse <> vbOK Then
+        'exit sub based on user's response
+        Exit Sub
+    End If
+    
+    'select a file to be loaded
+    strFileToOpen = Application.GetOpenFilename _
+        (Title:="Please choose a Flatbed scan file to open", _
+        FileFilter:="CSV Files (.csv), *.csv")
+    
+    If strFileToOpen = "False" Then
+        Exit Sub
+    End If
+    
+    tStart = Now()
+    'Debug.Print (tStart)
+    
+    importFileOutcome = ImportFile(strFileToOpen, Worksheets(cFlatbedScansWorksheetName))
+    
+    Application.CalculateFullRebuild
+    
+    If importFileOutcome Then
+        'proceed here only if the file was successfully loaded
+        Worksheets(cFlatbedScansWorksheetName).Activate 'bring focus to the "logs" tab
+        Worksheets(cFlatbedScansWorksheetName).Cells(1, 1).Activate 'bring focus to the first cell on the sheet
+        
+        tEnd = Now()
+        'Debug.Print (tEnd)
+        
+        MsgBox "FBS file loading was completed successfully." _
+            & vbCrLf & "Execution time: " & getTimeLength(tStart, tEnd) _
+            , vbInformation, "Master Check-in Template - FBS scan import"
+    End If
+    
+End Sub
+
+Private Function ImportFile(strFileToOpen As String, ws_target As Worksheet) As Boolean ', file_type_to_open As String
+    'Dim strFileToOpen As String
+    
+    On Error GoTo ErrHandler 'commented to test, need to be uncommented
+    Application.EnableEvents = False
+    Application.ScreenUpdating = False
+    
+    Dim s As Worksheet
+    Dim convToText_cols As Variant, i As Integer
+    
+    Set s = Worksheets(cTempLoadWrkSh)
+    
+    s.Cells.Clear 'delete everything on the target worksheet
+    
+    CopyDataFromFile s, strFileToOpen 'copy date of the main sheet from the source file to the temp_load sheet
+    
+    DeleteBlankRows s 'clean blank rows of just imported file on the temp_load sheet
+    
+    convToText_cols = Split(GetConfigValue("FBS_LoadFromFile_Cols_ConvertToText"), ",")
+    If ArrLength(convToText_cols) > 1 Then
+        For i = 0 To ArrLength(convToText_cols) - 1
+            ConvertNumberValueToString CStr(convToText_cols(i)), s '    ConvertNumberValueToString "B", s
+        Next
+    End If
+    
+    CopySelectedColumnToTargetSheet s, ws_target, GetConfigValue("FBS_LoadFromFile_ColMapping_Position"), True ' '"A:A"
+    CopySelectedColumnToTargetSheet s, ws_target, GetConfigValue("FBS_LoadFromFile_ColMapping_TubeID"), True ' '"B:B"
+    CopySelectedColumnToTargetSheet s, ws_target, GetConfigValue("FBS_LoadFromFile_ColMapping_Status"), True ' '"C:C"
+    CopySelectedColumnToTargetSheet s, ws_target, GetConfigValue("FBS_LoadFromFile_ColMapping_BoxID"), True ' '"D:D"
+    
+    Application.EnableEvents = True
+    Application.ScreenUpdating = True
+    
+    ImportFile = True
+    Exit Function
+    
+ErrHandler:
+    MsgBox Err.Description, vbCritical
+ExitMark:
+    Application.EnableEvents = True
+    Application.ScreenUpdating = True
+    ImportFile = False
+End Function
+
+'This sub opens specified file and loads it contents to a specified worksheet
+Private Sub CopyDataFromFile(ws_target As Worksheet, _
+                    src_file_path As String, _
+                    Optional src_worksheet_name As String = "")
+    On Error GoTo ErrHandler
+    Application.ScreenUpdating = False
+    
+    Dim src As Workbook
+    Dim path As String
+    
+    ' OPEN THE SOURCE EXCEL WORKBOOK IN "READ ONLY MODE".
+    Set src = Workbooks.Open(src_file_path, True, True)
+    
+    If src_worksheet_name = "" Then
+        src_worksheet_name = src.Worksheets(1).Name
+    End If
+    
+    src.Worksheets(src_worksheet_name).Cells.Copy 'copy into a clipboard
+    ws_target.Cells.PasteSpecial Paste:=xlPasteAll 'paste to the worksheet
+    Application.CutCopyMode = False 'clean clipboard
+    
+  
+    ' CLOSE THE SOURCE FILE.
+    src.Close False             ' FALSE - DON'T SAVE THE SOURCE FILE.
+    Set src = Nothing
+    
+    Application.ScreenUpdating = True
+    
+    Exit Sub
+    
+ErrHandler:
+    MsgBox Err.Description, vbCritical
+    Application.EnableEvents = True
+    Application.ScreenUpdating = True
+End Sub
+
+Private Sub CopySelectedColumnToTargetSheet(source As Worksheet, Target As Worksheet, mapping As String, Optional convertToText As Boolean = False)
+    Dim copy_cols() As String
+    Dim src_col As Range, dst_col As Range
+    Dim src_used_rows As Integer, dest_used_rows As Integer
+    
+    src_used_rows = source.UsedRange.rows.Count
+    dest_used_rows = Target.UsedRange.rows.Count
+    
+    copy_cols = Split(mapping, ":")
+    If ArrLength(copy_cols) > 1 Then
+        Set src_col = source.Range(copy_cols(0) & "2:" & copy_cols(0) & CStr(src_used_rows))
+        Set dst_col = Target.Range(copy_cols(1) & "2:" & copy_cols(1) & CStr(dest_used_rows))
+    End If
+    dst_col.Clear
+    
+    If convertToText Then
+        src_col.NumberFormat = "@"
+        dst_col.NumberFormat = "@"
+    End If
+        
+    src_col.Cells.Copy 'copy into a clipboard
+    dst_col.Cells.PasteSpecial Paste:=xlPasteValues 'paste to the worksheet
+    
+End Sub
+
+Private Sub DeleteBlankRows(ws_target As Worksheet)
+    Dim SourceRange As Range
+    Dim EntireRow As Range
+    Dim i As Long, non_blanks As Long, empty_strings As Long
+ 
+    Set SourceRange = ws_target.UsedRange ' Cells.End(xlToLeft)
+ 
+    If Not (SourceRange Is Nothing) Then
+        'Application.ScreenUpdating = False
+ 
+        For i = SourceRange.rows.Count To 1 Step -1
+            Set EntireRow = SourceRange.Cells(i, 1).EntireRow
+            non_blanks = Application.WorksheetFunction.CountA(EntireRow)
+            empty_strings = Application.WorksheetFunction.CountIf(EntireRow, "")
+            If non_blanks = 0 Or EntireRow.Cells.Count = empty_strings Then
+                EntireRow.Delete
+            'Else
+                'Print ("Not blank row")
+            End If
+        Next
+ 
+        'Application.ScreenUpdating = True
+    End If
+End Sub
+
+'Adds apostrophe (') character in front of the value of each affected cell to make sure Excel recongnizes that value as text
+Private Sub ConvertNumberValueToString(columnToUpdate As String, Target As Worksheet) ', column_to_fill As String, fill_rows_num As Integer
+    Dim dst_col As Range
+    Dim dest_used_rows As Integer
+    Dim cell As Range
+    
+    'clean target column first
+    dest_used_rows = Target.UsedRange.rows.Count
+    Set dst_col = Target.Range(columnToUpdate & "2:" & columnToUpdate & CStr(dest_used_rows))
+    
+    For Each cell In dst_col
+        If IsNumeric(cell.value) Then
+            cell.value = "'" & cell.value
+        End If
+    Next
+    
+End Sub
